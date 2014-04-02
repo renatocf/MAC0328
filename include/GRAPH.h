@@ -1,6 +1,14 @@
 #ifndef H_GRAPH_DEFINED
 #define H_GRAPH_DEFINED
 
+/*
+////////////////////////////////////////////////////////////////////////
+-----------------------------------------------------------------------
+                           GRAPH DEFINITIONS
+-----------------------------------------------------------------------
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+*/
+
 /* Vertex, Arc and Edge */
 #define Vertex int
 typedef struct {
@@ -27,10 +35,34 @@ struct digraph {
 typedef struct digraph *Digraph;
 #define Graph Digraph
 
-/* Function to manipulate digraph */
-Digraph DIGRAPHinit(int V);
+/*
+////////////////////////////////////////////////////////////////////////
+-----------------------------------------------------------------------
+                         GRAPH MANIPULATION
+-----------------------------------------------------------------------
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+*/
+
+/* Digraph basic functions */
+Digraph DIGRAPHinit    (int V);
+void    DIGRAPHinsertA (Digraph G, Vertex v, Vertex w);
+void    DIGRAPHremoveA (Digraph G, Vertex v, Vertex w);
+void    DIGRAPHshow    (Digraph G);
     
-/* Function to manipulate graph */
+/* Graph basic functions */
 #define GRAPHinit DIGRAPHinit
+#define GRAPHshow DIGRAPHshow
+void    GRAPHinsertA (Graph G, Vertex v, Vertex w);
+void    GRAPHremoveA (Graph G, Vertex v, Vertex w);
+
+/*
+////////////////////////////////////////////////////////////////////////
+-----------------------------------------------------------------------
+                              ALGORITHMS
+-----------------------------------------------------------------------
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+*/
+
+int DIGRAPHpath(Digraph G, Vertex s, Vertex t);
 
 #endif
