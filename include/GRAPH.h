@@ -35,6 +35,8 @@ struct digraph {
 typedef struct digraph *Digraph;
 #define Graph Digraph
 
+#define maxV 100
+
 /*
 ////////////////////////////////////////////////////////////////////////
 -----------------------------------------------------------------------
@@ -63,6 +65,9 @@ void    GRAPHremoveA (Graph G, Vertex v, Vertex w);
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 */
 
-int DIGRAPHpath(Digraph G, Vertex s, Vertex t);
+int  DIGRAPHpath (Digraph G, Vertex s, Vertex t);
+void pathR       (Digraph G, Vertex v);
+int  st_cut      (Digraph G, Vertex s, Vertex t);
+int  st_path     (Digraph G, Vertex s, Vertex t);
 
 #endif

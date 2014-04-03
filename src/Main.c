@@ -26,6 +26,20 @@ int main()
         DIGRAPHinsertA(G,5,1);
         
         DIGRAPHshow(G);
+        
+        if(DIGRAPHpath(G,0,1))
+            printf("There is path between 0 and 1\n");
+        if(st_cut(G,0,1))
+            printf("There is a cut between 0 and 1\n");
+        if(st_path(G,0,1))
+            printf("There is path between 0 and 1\n");
+        
+        if(DIGRAPHpath(G,5,4))
+            printf("There is path between 5 and 4\n");
+        if(st_cut(G,5,4))
+            printf("There is a cut between 5 and 4\n");
+        if(st_path(G,5,4))
+            printf("There is path between 5 and 4\n");
     
     /** GRAPH *********************************************************/
         printf("\n-- GRAPH --------------------\n");

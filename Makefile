@@ -26,13 +26,20 @@
 ########################################################################
 
 # Project setting 
-PROJECT ?= Default
-VERSION ?= 1.0
+PROJECT  ?= Default
+VERSION  ?= 1.0
 
 # Program settings
-BIN     ?= a.out
-ARLIB   ?= 
-SHRLIB  ?= 
+BIN      ?=
+SBIN     ?=
+LIBEXEC  ?=
+ARLIB    ?=
+SHRLIB   ?=
+
+# Documentation settings
+LICENSE  ?= LICENSE
+NOTICE   ?= NOTICE
+DOXYFILE ?= Doxyfile
 
 ########################################################################
 ##                              FLAGS                                 ##
@@ -45,7 +52,7 @@ ASFLAGS   ?= -f elf32
 CFLAGS    ?= -Wall -ansi -pedantic -O2 -g
 
 # C++ Options
-CXXFLAGS  ?= $(CFLAGS) -std=gnu++11
+CXXFLAGS  ?= $(CFLAGS) -std=c++11
 
 # Parsers in C++
 CXXLEXER  ?= 
@@ -67,19 +74,102 @@ SOFLAGS   ?= -shared
 ########################################################################
 ifndef SINGLE_DIR
 SRCDIR  ?= src
-BINDIR  ?= bin
 DEPDIR  ?= dep
-OBJDIR  ?= build
 INCDIR  ?= include
+DOCDIR  ?= doc
+OBJDIR  ?= build
 LIBDIR  ?= lib
+BINDIR  ?= bin
+SBINDIR ?= sbin
+EXECDIR ?= libexec
 DISTDIR ?= dist
 TESTDIR ?= test
+DATADIR ?= 
+DESTDIR ?=
 else
 $(foreach var,\
-    SRCDIR BINDIR DEPDIR OBJDIR INCDIR LIBDIR DISTDIR TESTDIR,\
+    SRCDIR BINDIR DEPDIR OBJDIR INCDIR LIBDIR \
+    SBINDIR DISTDIR TESTDIR DATADIR,\
     $(eval $(var) := .)\
 )
 endif
+
+## INSTALLATION ########################################################
+
+### PREFIXES
+# * prefix:        Default prefix for variables below
+# * exec_prefix:   Prefix for machine-specific files (bins and libs)
+prefix         ?= /usr/local
+exec_prefix    ?= $(prefix)
+
+### EXECUTABLES AND LIBRARIES
+# * bindir:        Programs that user can run
+# * sbindir:       Runnable by shell, useful by sysadmins
+# * libexecdir:    Executables for being run only by other programs
+# * libdir         Object and libraries of object code
+install_dirs   := bindir sbindir libexecdir libdir
+bindir         ?= $(exec_prefix)/bin
+sbindir        ?= $(exec_prefix)/sbin
+libexecdir     ?= $(exec_prefix)/libexec
+libdir         ?= $(exec_prefix)/lib
+
+### DATA PREFIXES
+# * datarootdir:   Read-only machine-independent files (docs and data)
+# * datadir:       Read-only machine-independent files (data, no docs)
+# * sysconfdir:    Read-only single-machine files (as server configs)
+# * localstatedir: Exec-modifiable single-machine single-exec files 
+# * runstatedir:   Exec-modifiable single-machine run-persistent files
+install_dirs   += datarootdir datadir sysconfdir 
+install_dirs   += sharedstatedir localstatedir runstatedir
+datarootdir    ?= $(prefix)/share
+datadir        ?= $(datarootdir)
+sysconfdir     ?= $(prefix)/etc
+sharedstatedir ?= $(prefix)/com
+localstatedir  ?= $(prefix)/var
+runstatedir    ?= $(localstatedir)/run
+
+### HEADER FILES
+# * includedir:    Includable (header) files for use by GCC
+# * ondincludedir: Includable (header) files for GCC and othe compilers
+install_dirs   += includedir oldincludedir
+includedir     ?= $(prefix)/include
+oldincludedir  ?= /usr/include
+
+### DOCUMENTATION FILES
+# * infodir:       Doc directory for info files
+# * docdir:        Doc directory for files other than info     
+# * htmldir:       Doc directory for HTML files (with subdir for locale)
+# * dvidir:        Doc directory for DVI files (with subdir for locale)
+# * pdfdir:        Doc directory for PDF files (with subdir for locale)
+# * psdir:         Doc directory for PS files (with subdir for locale)
+install_dirs   += docdir infodir htmldir dvidir pdfdir psdir
+docdir         ?= $(datarootdir)/doc/$(PROJECT)/$(VERSION)
+infodir        ?= $(datarootdir)/info
+htmldir        ?= $(docdir)
+dvidir         ?= $(docdir)
+pdfdir         ?= $(docdir)
+psdir          ?= $(docdir)
+
+### MAN FILES
+# * mandir:       Manual main directory
+# * manXdir:      Manual section X (X from 1 to 7)
+install_dirs   += mandir man1dir man2dir man3dir 
+install_dirs   += man4dir man5dir man6dir man7dir
+mandir         ?= $(datarootdir)/man
+man1dir        ?= $(mandir)/man1
+man2dir        ?= $(mandir)/man2
+man3dir        ?= $(mandir)/man3
+man4dir        ?= $(mandir)/man4
+man5dir        ?= $(mandir)/man5
+man6dir        ?= $(mandir)/man6
+man7dir        ?= $(mandir)/man7
+
+### OTHERS
+# * lispdir:      Emacs Lisp files in this package
+# * localedir:    Locale-specific message catalogs for the package
+install_dirs   += lispdir localedir
+lispdir        ?= $(datarootdir)/emacs/site-lisp
+localedir      ?= $(datarootdir)/locale
 
 ########################################################################
 ##                            EXTENSIONS                              ##
@@ -108,7 +198,15 @@ DEPEXT  ?= .d
 
 # Binary extensions
 OBJEXT  ?= .o
-BINEXT  ?= 
+BINEXT  ?=
+
+# Documentation extensions
+TEXIEXT ?= .texi
+INFOEXT ?= .info
+HTMLEXT ?= .html
+DVIEXT  ?= .dvi
+PDFEXT  ?= .pdf
+PSEXT   ?= .ps
 
 # Test suffix
 TESTSUF ?= _tests
@@ -123,33 +221,51 @@ TESTSUF ?= _tests
 ##                             PROGRAMS                               ##
 ########################################################################
 # Compilation
-AR         := ar
-AS         := nasm
-CC         := gcc
-CXX        := g++
-RANLIB     := ranlib
+AR              := ar
+AS              := nasm
+CC              := gcc
+CXX             := g++
+RANLIB          := ranlib
+
+# Installation
+INSTALL         := install
+INSTALL_DATA    := $(INSTALL)
+INSTALL_PROGRAM := $(INSTALL) -m 644
 
 # File manipulation
-CP         := cp -rap
-MV         := mv
-RM         := rm -f
-TAR        := tar -cvf
-ZIP        := gzip
-MKDIR      := mkdir -p
-RMDIR      := rm -rf
-FIND       := find
-FIND_FLAGS := -type d -print 2> /dev/null
+CP              := cp -rap
+MV              := mv
+RM              := rm -f
+TAR             := tar -cvf
+ZIP             := zip
+GZIP            := gzip
+BZIP2           := bzip2
+MKDIR           := mkdir -p
+RMDIR           := rm -rf
+FIND            := find
+FIND_FLAGS      := -type d -print 2> /dev/null
+
+# Documentations
+DOXYGEN         := doxygen
 
 # Parser and Lexer
-LEX        := flex
-LEX_CXX    := flex++
-LEXFLAGS   := 
-YACC       := bison
-YACC_CXX   := bison++
-YACCFLAGS  := -d #-v -t
+LEX             := flex
+LEX_CXX         := flexc++
+LEXFLAGS        := 
+YACC            := bison
+YACC_CXX        := bisonc++
+YACCFLAGS       := -d #-v -t
+
+# Documentation
+MAKEINFO        := makeinfo
+INSTALL_INFO    := install-info
+TEXI2HTML       := makeinfo --no-split --html
+TEXI2DVI        := texi2dvi
+TEXI2PDF        := texi2pdf
+TEXI2PS         := texi2dvi --ps
 
 # Make
-MAKE       += --no-print-directory
+MAKE            += --no-print-directory
 
 # Include configuration file if exists
 -include config_os.mk
@@ -165,6 +281,9 @@ MAKE       += --no-print-directory
 ##                       USER INPUT VALIDATION                        ##
 ########################################################################
 
+# Documentation:
+doxyfile  := $(strip $(firstword $(DOXYFILE)))
+
 # Flags:
 # Redefine flags to avoid conflict with user's local definitions
 asflags   := $(ASFLAGS)
@@ -178,16 +297,29 @@ soflags   := $(SOFLAGS)
 lexflags  := $(LEXFLAG)
 yaccflags := $(YACCFLAGS)
 
+# Installation directories
+destdir := $(strip $(foreach d,$(DESTDIR),$(patsubst %/,%,$d)))
+
+$(foreach b,$(install_dirs),\
+    $(if $(strip $(firstword $($b))),\
+        $(eval i_$b := $(destdir)$(strip $(patsubst %/,%,$($b)))),\
+        $(error "$b" must not be empty))\
+)
+
 # Directories:
 # No directories must end with a '/' (slash)
-srcdir  := $(strip $(foreach d,$(SRCDIR),$(patsubst %/,%,$d)))
-bindir  := $(strip $(foreach d,$(BINDIR),$(patsubst %/,%,$d)))
-depdir  := $(strip $(foreach d,$(DEPDIR),$(patsubst %/,%,$d)))
-objdir  := $(strip $(foreach d,$(OBJDIR),$(patsubst %/,%,$d)))
-incdir  := $(strip $(foreach d,$(INCDIR),$(patsubst %/,%,$d)))
-libdir  := $(strip $(foreach d,$(LIBDIR),$(patsubst %/,%,$d)))
-distdir := $(strip $(foreach d,$(DISTDIR),$(patsubst %/,%,$d)))
-testdir := $(strip $(foreach d,$(TESTDIR),$(patsubst %/,%,$d)))
+override srcdir  := $(strip $(foreach d,$(SRCDIR),$(patsubst %/,%,$d)))
+override depdir  := $(strip $(foreach d,$(DEPDIR),$(patsubst %/,%,$d)))
+override incdir  := $(strip $(foreach d,$(INCDIR),$(patsubst %/,%,$d)))
+override docdir  := $(strip $(foreach d,$(DOCDIR),$(patsubst %/,%,$d)))
+override objdir  := $(strip $(foreach d,$(OBJDIR),$(patsubst %/,%,$d)))
+override libdir  := $(strip $(foreach d,$(LIBDIR),$(patsubst %/,%,$d)))
+override bindir  := $(strip $(foreach d,$(BINDIR),$(patsubst %/,%,$d)))
+override sbindir := $(strip $(foreach d,$(SBINDIR),$(patsubst %/,%,$d)))
+override execdir := $(strip $(foreach d,$(EXECDIR),$(patsubst %/,%,$d)))
+override distdir := $(strip $(foreach d,$(DISTDIR),$(patsubst %/,%,$d)))
+override testdir := $(strip $(foreach d,$(TESTDIR),$(patsubst %/,%,$d)))
+override datadir := $(strip $(foreach d,$(DATADIR),$(patsubst %/,%,$d)))
 
 # Check if every directory variable is non-empty
 ifeq ($(and $(srcdir),$(bindir),$(depdir),$(objdir),\
@@ -219,8 +351,16 @@ depext  := $(strip $(sort $(DEPEXT)))
 objext  := $(strip $(sort $(OBJEXT)))
 binext  := $(strip $(sort $(BINEXT)))
 
+texiext := $(strip $(sort $(TEXIEXT)))
+infoext := $(strip $(sort $(INFOEXT)))
+htmlext := $(strip $(sort $(HTMLEXT)))
+dviext  := $(strip $(sort $(DVIEXT)))
+pdfext  := $(strip $(sort $(PDFEXT)))
+psext   := $(strip $(sort $(PSEXT)))
+
 incext := $(hext) $(hxxext)
 srcext := $(cext) $(cxxext)
+docext := $(texiext) $(infoext) $(htmlext) $(dviext) $(pdfext) $(psext)
 
 # Check all extensions
 allext := $(incext) $(srcext) $(asmext) $(libext) 
@@ -247,6 +387,9 @@ endif
 ##                              PATHS                                 ##
 ########################################################################
 
+# Define the shell to be used
+SHELL = /bin/sh
+
 # Define extensions as the only valid ones
 .SUFFIXES:
 .SUFFIXES: $(allext)
@@ -257,11 +400,6 @@ vpath %.tar    $(distdir) # All tar files in distdir
 vpath %.tar.gz $(distdir) # All tar.gz files in distdir
 
 # Binaries, libraries and source extensions
-$(foreach b,$(bindir) $(bindir)/$(testdir),\
-    $(if $(binext),\
-        $(foreach e,$(binext),$(eval vpath %$e $(bindir))),\
-        $(eval vpath %$e $(bindir)))\
-)
 $(foreach e,$(libext),$(eval vpath lib%$e $(libdir)))
 $(foreach s,$(srcdir),$(foreach e,$(srcext),$(eval vpath %$e $s)))
 $(foreach s,$(testdir),$(foreach e,$(srcext),$(eval vpath %$e $s)))
@@ -275,12 +413,12 @@ $(foreach s,$(testdir),$(foreach e,$(srcext),$(eval vpath %$e $s)))
 # 1) root: Gets the root directory (first in the path) of a path or file
 # 2) not-root: Given a path or file, take out the root directory of it
 # 3) not: Returns empty if its argument was defined, or T otherwise
-# 4) remove-trailing-bar: Removes the last / of a directory-onl name
+# 4) remove-trailing-bar: Removes the last / of a directory-only name
 # 5) is-cxx: find out if there is a C++ file in its single argument
 define root
 $(foreach s,$1,\
-	$(if $(findstring /,$s),\
-		$(call root,$(patsubst %/,%,$(dir $s))),$(strip $s)))
+    $(if $(findstring /,$s),\
+        $(call root,$(patsubst %/,%,$(dir $s))),$(strip $s)))
 endef
 
 define not-root
@@ -299,20 +437,25 @@ define is_cxx
 $(foreach e,$(cxxext),$(findstring $e,$(suffix $1)))
 endef
 
+# Auxiliar functions
+# ===================
+# 1) rsubdir: For listing all subdirectories of a given dir
+# 2) rwildcard: For wildcard deep-search in the directory tree
+# 3) rfilter-out: For filtering text from a list with many items     
+rsubdir   = $(foreach d,$1,$(shell $(FIND) $d $(FIND_FLAGS)))
+rwildcard = $(foreach d,$(wildcard $1/*),\
+                $(call rwildcard,$d,$2)$(filter $(subst *,%,$2),$d)) 
+rfilter-out = \
+  $(eval rfilter-out_aux = $2)\
+  $(foreach d,$1,$(eval rfilter-out_aux = $(filter-out $d,$(rfilter-out_aux))))\
+  $(sort $(rfilter-out_aux))
+
 # Default variable names 
 # ======================
 # fooall: complete path WITH root directories
 # foosrc: complete path WITHOUT root directories
 # foopat: incomplete paths WITH root directories
 # foolib: library names WITHOUT root directories
-
-# Auxiliar functions
-# ===================
-# 1) rsubdir: For listing all subdirectories of a given dir
-# 2) rwildcard: For wildcard deep-search in the directory tree
-rsubdir   = $(foreach d,$1,$(shell $(FIND) $d $(FIND_FLAGS)))
-rwildcard = $(foreach d,$(wildcard $1/*),\
-                $(call rwildcard,$d,$2)$(filter $(subst *,%,$2),$d)) 
 
 # Assembly files
 # ==============
@@ -339,29 +482,22 @@ $(foreach root,$(srcdir),\
 # | 7 |  X  |  X   |  X  | Ok     | Find the specific file          |
 # '---'-----'------'-----'--------'---------------------------------'
 # Examples: 1: test1/  2: test2 .c      4: test4/test4       5: test5/.c 
-# 			6: test6.c 7: test7/test7.c 8: src/test8/test8.c
+#           6: test6.c 7: test7/test7.c 8: src/test8/test8.c
 # 1) ar_in/shr_in: Remove the last / if there is a path only
-# 1) lib_in      : Store libraries as being shared and static libs
-# 3) liball      : If there is only a suffix, throw an error. 
-#                  Otherwise, make the same action as above
-# 4) libsrc      : Remove src root directories from libraries
+# 2) lib_in      : Store libraries as being shared and static libs.
+#                  If there is only a suffix, throw an error. 
 #------------------------------------------------------------------[ 1 ]
-ar_in  := $(call remove-trailing-bar,$(ARLIB))
-shr_in := $(call remove-trailing-bar,$(SHRLIB))
+ar_in     := $(call remove-trailing-bar,$(ARLIB))
+shr_in    := $(call remove-trailing-bar,$(SHRLIB))
 #------------------------------------------------------------------[ 2 ]
-lib_in := $(ar_in) $(shr_in)
-#------------------------------------------------------------------[ 3 ]
-lib_in := \
+lib_in    := $(ar_in) $(shr_in)
+lib_in    := \
 $(foreach s,$(lib_in),                                                 \
   $(if $(and                                                           \
       $(strip $(suffix $s)),$(if $(strip $(notdir $(basename $s))),,T) \
   ),                                                                   \
   $(error "Invalid argument $s in library variable"),$s)               \
 )
-#------------------------------------------------------------------[ 4 ]
-libsrc := $(lib_in)
-$(foreach root,$(srcdir),\
-    $(eval libsrc := $(patsubst $(root)/%,%,$(libsrc))) )
 
 # Lexical analyzer
 # =================
@@ -448,6 +584,7 @@ liball := $(sort \
             $(if $(findstring $l,$s),$s))),\
         $(error Library file/directory "$l" not found))\
 ))
+
 #------------------------------------------------------------------[ 3 ]
 # Search-for-complete-path steps:
 # * Cases #6 (path witout root) and #7 (all path);
@@ -460,10 +597,11 @@ libpat := $(sort \
                 $(filter %$l,$s))\
         )),\
         $(strip $(foreach root,$(srcdir),\
-            $(foreach s,$(call rsubdir,$(root)),\
-                $(if $(findstring $l,$s),$s)\
-            )\
-        )),\
+            $(firstword $(sort \
+                $(foreach s,$(call rsubdir,$(root)),\
+                    $(if $(findstring $l,$s),$s)\
+                )\
+        )))),\
         $(strip $(foreach s,$(srcall),\
             $(if $(findstring $l,$s),$s)\
         ))\
@@ -479,81 +617,103 @@ $(foreach root,$(srcdir),$(eval src := $(patsubst $(root)/%,%,$(src))))
 # Static libraries
 # =================
 # 1) Get complete static library paths from all libraries
-# 2) Expand directories to their paths, getting ALL sources without 
-#    root directories
-# 3) Create analogous object files from the above
-# 4) Create library names, with directories, from the source
-# 5) Set libraries to be linked with the binaries
+# 2) Store static library paths without root directory
+# 3) Create one var with the object dependencies for each lib above
+# 4) Create variables for all static library objects
+# 5) Create library simple names, without directories or extension
+# 6) Create library names, with directories, from the source
 #------------------------------------------------------------------[ 1 ]
-arall   := \
-$(foreach ar,$(ar_in),\
-    $(foreach l,$(liball),\
-        $(if $(findstring $(ar),$l),$l)\
-))
 arpat   := \
 $(foreach ar,$(ar_in),\
     $(foreach l,$(libpat),\
         $(if $(findstring $(ar),$l),$l)\
 ))
 #------------------------------------------------------------------[ 2 ]
-arasrc   := $(arall)
-$(foreach root,$(srcdir),\
-    $(eval arasrc := $(patsubst $(root)/%,%,$(arasrc)))\
-)
-arpsrc  := $(arpat)
-$(foreach root,$(srcdir),\
-    $(eval arpsrc := $(patsubst $(root)/%,%,$(arpsrc)))\
-)
+arpatsrc  := $(call not-root,$(arpat))
 #------------------------------------------------------------------[ 3 ]
-arobj   := $(addprefix $(objdir)/,$(addsuffix .o,$(basename $(arasrc))))
+$(foreach ar,$(arpat),\
+    $(eval arobj_$(call not-root,$(ar)) := \
+        $(foreach l,$(liball),\
+            $(if $(strip $(findstring $(ar),$l)),\
+                $(addprefix $(objdir)/,\
+                    $(addsuffix $(firstword $(objext)),\
+                         $(call not-root,$(basename $l)\
+)))))))
 #------------------------------------------------------------------[ 4 ]
-arlib   := $(foreach s,$(arpsrc),\
-                $(patsubst $(subst ./,,$(dir $s))%,\
-                $(subst ./,,$(dir $s))lib%,$s)\
-            )
-arlib   := $(patsubst %,$(libdir)/%.a,$(basename $(arlib)))
+arobj   := $(foreach ar,$(arpatsrc),$(arobj_$(ar)))
 #------------------------------------------------------------------[ 5 ]
-ldflags += $(addprefix -l,$(notdir $(basename $(arpsrc))))
+arname  := $(notdir $(basename $(arpatsrc)))
+#------------------------------------------------------------------[ 6 ]
+arlib   := $(foreach s,$(arpatsrc),\
+               $(patsubst $(subst ./,,$(dir $s))%,\
+               $(subst ./,,$(dir $s))lib%,$s)\
+           )
+arlib   := $(patsubst %,$(firstword $(libdir))/%.a,$(basename $(arlib)))
 
 # Dynamic libraries
 # ==================
-# 1) Get complete static library paths from all libraries
-# 2) Expand directories to their paths, getting ALL sources without 
-#    root directories
-# 3) Create analogous object files from the above
-# 4) Create library names, with directories, from the source
-# 5) Set libraries to be linked with the binaries
+# 1) Get all source files that may be compiled to create the shared lib
+# 2) Get complete dynamic library paths from all libraries
+# 3) Store dynamic library paths without root directory
+# 4) Create one var with the object dependencies for each lib above
+# 5) Create variables for all dynamic library objects
+# 6) Create library simple names, without directories or extension
+# 7) Create library complete names, with directories, from the source
+# 8) Set directories for locally searching for the libraries
 #------------------------------------------------------------------[ 1 ]
 shrall  := \
 $(foreach so,$(shr_in),\
     $(foreach l,$(liball),\
         $(if $(findstring $(so),$l),$l)\
 ))
+#------------------------------------------------------------------[ 2 ]
 shrpat  := \
 $(foreach so,$(shr_in),\
     $(foreach l,$(libpat),\
         $(if $(findstring $(so),$l),$l)\
 ))
-#------------------------------------------------------------------[ 2 ]
-shrasrc  := $(shrall)
-$(foreach root,$(srcdir),\
-    $(eval shrasrc := $(patsubst $(root)/%,%,$(shrasrc)))\
-)
-shrpsrc := $(shrpat)
-$(foreach root,$(srcdir),\
-    $(eval shrpsrc := $(patsubst $(root)/%,%,$(shrpsrc)))\
-)
 #------------------------------------------------------------------[ 3 ]
-shrobj  := $(patsubst %,$(objdir)/%.o,$(basename $(shrasrc)))
+shrpatsrc := $(call not-root,$(shrpat))
 #------------------------------------------------------------------[ 4 ]
-shrlib  := $(foreach s,$(shrpsrc),\
+$(foreach shr,$(shrpat),\
+    $(eval shrobj_$(call not-root,$(shr)) := \
+        $(foreach l,$(liball),\
+            $(if $(strip $(findstring $(shr),$l)),\
+                $(addprefix $(objdir)/,\
+                    $(addsuffix $(firstword $(objext)),\
+                         $(call not-root,$(basename $l)\
+)))))))
+#------------------------------------------------------------------[ 5 ]
+shrobj   := $(foreach shr,$(shrpatsrc),$(shrobj_$(shr)))
+#------------------------------------------------------------------[ 6 ]
+shrname := $(notdir $(basename $(shrpatsrc)))
+#------------------------------------------------------------------[ 7 ]
+shrlib  := $(foreach s,$(shrpatsrc),\
                 $(patsubst $(subst ./,,$(dir $s))%,\
                 $(subst ./,,$(dir $s))lib%,$s)\
             )
-shrlib  := $(patsubst %,$(libdir)/%.so,$(basename $(shrlib)))
-#------------------------------------------------------------------[ 5 ]
-ldflags += $(addprefix -l,$(notdir $(basename $(shrpsrc))))
-$(if $(strip $(shrpsrc)),$(eval ldflags := -Wl,-rpath=$(libdir) $(ldflags)))
+shrlib  := $(patsubst %,$(firstword $(libdir))/%.so,$(basename $(shrlib)))
+#------------------------------------------------------------------[ 8 ]
+$(if $(strip $(shrpatsrc)),\
+    $(foreach d,$(sort $(dir $(shrlib))),\
+        $(eval ldflags := -Wl,-rpath=$d $(ldflags))\
+))
+
+# External libraries
+# ====================
+# 1) externlib:  Extra libraries given by the user
+# 2) externname: Extra libraries names, deduced from above
+#------------------------------------------------------------------[ 1 ]
+externlib  := \
+$(foreach e,$(libext),\
+    $(foreach d,$(wordlist 2,$(words $(libdir)),$(libdir)),\
+        $(call rwildcard,$d,*$e)\
+))
+#------------------------------------------------------------------[ 2 ]
+externname := \
+$(foreach e,$(libext),\
+    $(patsubst lib%$e,%,$(filter lib%$e,$(notdir $(externlib))))\
+)
 
 # Object files
 # =============
@@ -564,7 +724,7 @@ $(if $(strip $(shrpsrc)),$(eval ldflags := -Wl,-rpath=$(libdir) $(ldflags)))
 obj := $(addsuffix .o,$(basename $(asmsrc)))
 obj += $(addsuffix .o,$(basename $(src)))
 obj := $(addprefix $(objdir)/,$(obj))
-objall := $(obj) $(autoobj)
+objall := $(obj) $(arobj) $(shrobj) $(autoobj)
 
 # Header files
 # =============
@@ -575,22 +735,25 @@ incsub  := $(foreach i,$(incdir),$(call rsubdir,$i))
 clibs   := $(patsubst %,-I%,$(incsub))
 cxxlibs := $(patsubst %,-I%,$(incsub))
 incall  := $(foreach i,$(incdir),$(foreach e,$(incext),\
-				$(call rwildcard,$i,*$e)))
+                $(call rwildcard,$i,*$e)))
 
 # Library files
 # ==============
-# 1) Get all subdirectories of the library dirs
-# 2) Add them as paths to be searched for libraries
-lib    := $(arlib) $(shrlib)
-libsub  = $(if $(strip $(lib)),$(call rsubdir,$(libdir)))
-ldlibs  = $(sort $(patsubst %/,%,$(patsubst %,-L%,$(libsub))))
+# 1) lib: all static and shared libraries
+# 2) libname: all static and shared libraries names
+# 3) Get all subdirectories of the library dirs and 
+#    add them as paths to be searched for libraries
+lib     := $(arlib) $(shrlib) $(externlib)
+libname := $(arname) $(shrname) $(externname)
+libsub   = $(if $(strip $(lib)),$(foreach d,$(libdir),$(call rsubdir,$d)))
+ldlibs   = $(sort $(patsubst %/,%,$(patsubst %,-L%,$(libsub))))
 
 # Automated tests
 # ================
 # 1) testall: Get all source files in the test directory
 # 2) testdep: Basenames without test suffix, root dirs and extensions
 # 3) testrun: Alias to execute tests, prefixing run_ and 
-# 			  substituting / for _ in $(testdep)
+#             substituting / for _ in $(testdep)
 #------------------------------------------------------------------[ 1 ]
 $(foreach E,$(srcext),\
     $(eval testall += $(call rwildcard,$(testdir),*$(testsuf)$E)))
@@ -604,90 +767,306 @@ testrun := $(addprefix run_,$(subst /,_,$(testdep)))
 # 1) Dependencies will be generated for sources, auto sources and tests
 # 2) Get the not-root basenames of all source directories
 # 3) Create dependency names and directories
-depall := $(testall) $(call not-root,$(srcall) $(autoall))
-depall := $(strip $(basename $(depall)))
-depall := $(addprefix $(depdir)/,$(addsuffix $(depext),$(depall)))
+depall  := $(testall) $(call not-root,$(srcall) $(autoall))
+depall  := $(strip $(basename $(depall)))
+depall  := $(addprefix $(depdir)/,$(addsuffix $(depext),$(depall)))
 
 # Binary
 # =======
 # 1) Define all binary names (with extensions if avaiable)
-# 2) Store common source, objects and libs between binaries
-# 3) Create variables:
-# 	 3.1) binary-name_src, for binary's specific sources;
-# 	 3.2) binary-name_obj, for binary's specific objects;
-# 	 3.3) binary-name_lib, for binary's specific libraries;
-# 	 3.4) binary-name_aobj, for binary's specific auto-generated objects;
-# 	 3.5) binary-name_asrc, for binary's specific auto-generated sources;
-# 	 3.6) binary-name_is_cxx, to test if the binary may be C's or C++'s
+# 2) Store binary-specific files from source, objects and libs
+# 3) Store common source, objects and libs filtering the above ones
+# 4) Create variables:
+#    4.1) binary-name_src, for binary's specific sources;
+#    4.2) binary-name_obj, for binary's specific objects;
+#    4.3) binary-name_lib, for binary's specific libraries;
+#    4.4) binary-name_link, for binary's specific linker flags;
+#    4.5) binary-name_aobj, for binary's specific auto-generated objects;
+#    4.6) binary-name_asrc, for binary's specific auto-generated sources;
+#    4.7) binary-name_is_cxx, to test if the binary may be C's or C++'s
 #------------------------------------------------------------------[ 1 ]
-bin := $(sort $(strip $(BIN)))
-bin := $(if $(strip $(binext)),$(addprefix $(binext),$(bin)),$(bin))
+bin     := $(addprefix $(bindir)/,$(notdir $(sort $(strip $(BIN)))))
+bin     := $(if $(strip $(binext)),\
+                $(addsuffix $(binext),$(bin)),$(bin))
+
+sbin    := $(addprefix $(sbindir)/,$(notdir $(sort $(strip $(SBIN)))))
+sbin    := $(if $(strip $(binext)),\
+                $(addsuffix $(binext),$(sbin)),$(sbin))
+
+libexec := $(addprefix $(execdir)/,$(notdir $(sort $(strip $(LIBEXEC)))))
+libexec := $(if $(strip $(binext)),\
+                $(addsuffix $(binext),$(libexec)),$(libexec))
+
+$(if $(strip $(bin) $(sbin) $(libexec)),\
+    $(eval binall := $(bin) $(sbin) $(libexec)),\
+    $(eval binall := $(bindir)/a.out)\
+)
 #------------------------------------------------------------------[ 2 ]
-$(foreach b,$(bin),$(or\
-    $(eval comsrc  := $(filter-out $b/%,$(src))),\
-    $(eval comobj  := $(filter-out $(objdir)/$b/%,$(obj))),\
-    $(eval comlib  := $(filter-out $(libdir)/$b/%,$(lib))),\
-    $(eval comaobj := $(filter-out $(objdir)/$b/%,$(autoobj))),\
-    $(eval comaall := $(foreach b,$(bin),$(foreach s,$(srcdir),\
-                        $(filter-out $s/$b/%,$(autoall)))))\
-))
+$(foreach sep,/ .,$(foreach b,$(notdir $(binall)),$(or\
+    $(eval $b_src  += $(filter $b$(sep)%,$(src))),\
+    $(eval $b_obj  += $(filter $(objdir)/$b$(sep)%,$(objall))),\
+    $(eval $b_aobj += $(filter $(objdir)/$b$(sep)%,$(autoobj))),\
+    $(eval $b_lib  += $(foreach d,$(libdir),\
+                          $(filter $d/$b$(sep)%,$(lib)))),\
+    $(eval $b_link += $(foreach n,$(libname),$(if $(strip \
+                          $(filter %$n,$(basename $($b_lib)))),$n))),\
+    $(eval $b_aall += $(foreach d,$(srcdir),\
+                          $(filter $d/$b$(sep)%,$(autosrc)))),\
+)))
 #------------------------------------------------------------------[ 3 ]
-$(foreach b,$(bin),$(or\
-    $(eval $b_src    := $(comsrc)  $(filter $b/%,$(src))),\
-    $(eval $b_obj    := $(comobj)  $(filter $(objdir)/$b/%,$(objall))),\
-    $(eval $b_lib    := $(comlib)  $(filter $(libdir)/$b/%,$(lib))),\
-    $(eval $b_aobj   := $(comaobj) $(filter $(objdir)/$b/%,$(autoobj))),\
-    $(eval $b_aall   := $(comasrc) $(foreach s,$(srcdir),\
-                                       $(filter $s/$b/%,$(autosrc)))),\
+define common-factory
+$(call rfilter-out,$(foreach b,$(notdir $(binall)),$($b_$1)),$2)
+endef
+comsrc  := $(call common-factory,src,$(src))
+comobj  := $(call common-factory,obj,$(objall))
+comlib  := $(call common-factory,lib,$(lib))
+comlink := $(call common-factory,link,$(libname))
+comaobj := $(call common-factory,aobj,$(autoobj))
+comaall := $(call common-factory,aall,$(autoall))
+#------------------------------------------------------------------[ 4 ]
+$(foreach b,$(notdir $(binall)),$(or\
+    $(eval $b_src    += $(comsrc)),\
+    $(eval $b_obj    += $(comobj)),\
+    $(eval $b_lib    += $(comlib)),\
+    $(eval $b_aobj   += $(comaobj)),\
+    $(eval $b_aall   += $(comasrc)),\
+    $(eval $b_link   := $(sort $(addprefix -l,$($b_link) $(comlink)))),\
     $(eval $b_is_cxx := $(strip $(call is_cxx,$($b_src)))),\
 ))
+
+# Texinfo files
+# ==============
+# 1) texiall: All TexInfo files with complete path
+# 2) texisrc: Take out root dir reference from above
+# 3) Create variables:
+#    3.1) texiinfo, for INFO's to be generated from TexInfo files
+#    3.1) texihtml, for HTML's to be generated from TexInfo files
+#    3.2) texidvi, for DVI's to be generated from TexInfo files
+#    3.3) texipdf, for PDF's to be generated from TexInfo files
+#    3.4) texips, for PS's to be generated from TexInfo files
+#------------------------------------------------------------------[ 1 ]
+$(foreach root,$(docdir),\
+    $(foreach E,$(texiext),\
+        $(eval texiall += $(call rwildcard,$(root),*$E))\
+))
+#------------------------------------------------------------------[ 2 ]
+texisrc := $(call not-root,$(texiall))
+#------------------------------------------------------------------[ 3 ]
+$(foreach doc,info html dvi pdf ps,\
+    $(eval texi$(doc) := \
+        $(addprefix $(firstword $(docdir))/$(doc)/,\
+            $(addsuffix $(firstword $($(doc)ext)),\
+                $(basename $(texisrc))\
+))))
 
 ########################################################################
 ##                              BUILD                                 ##
 ########################################################################
 
 .PHONY: all
-all: $(bin)
+all: $(binall)
+
+.PHONY: package
+package: package-tar.gz
 
 .PHONY: dist
-dist: $(distdir)/$(PROJECT)-$(VERSION).tar.gz
+dist: dist-tar.gz
 
 .PHONY: tar
-tar: $(distdir)/$(PROJECT)-$(VERSION).tar
+tar: dist-tar
 
 .PHONY: check
 check: $(testrun)
-	$(if $(strip $^),$(call ok,$(MSG_TEST_SUCCESS)))
+	$(if $(strip $^),$(call phony-ok,$(MSG_TEST_SUCCESS)))
 
 .PHONY: nothing
 nothing:
+
+########################################################################
+##                          INITIALIZATION                            ##
+########################################################################
 
 .PHONY: init
 init:
 	$(call mkdir,$(srcdir))
 	$(call mkdir,$(incdir))
+	$(call mkdir,$(docdir))
 	$(quiet) $(MAKE) config > Config.mk
+	$(quiet) $(MAKE) gitignore > .gitignore
+
+.PHONY: standard
+standard:
+	$(call mv,$(objext),$(objdir))
+	$(call mv,$(libext),$(firstword libdir))
+	$(call mv,$(docext),$(docdir))
+	$(call mv,$(incext),$(firstword incdir))
+	$(call mv,$(srcext) $(asmext) $(lexext) $(yaccext),\
+		$(firstword srcdir))
+
+########################################################################
+##                           INSTALLATION                             ##
+########################################################################
+
+.PHONY: install-strip
+install-strip:
+	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' install	   
+
+.PHONY: install
+install: | installdirs
+	$(foreach b,$(lib),\
+        $(call phony-status,$(MSG_INSTALL_BIN)); \
+        $(INSTALL_DATA) $b $(i_libdir)/$(notdir b); \
+        $(call phony-ok,$(MSG_INSTALL_BIN)); \
+    )
+	$(foreach b,$(bin),\
+        $(call phony-status,$(MSG_INSTALL_BIN)); \
+        $(INSTALL_PROGRAM) $b $(i_bindir)/$(notdir b); \
+        $(call phony-ok,$(MSG_INSTALL_BIN)); \
+    )
+	$(foreach b,$(sbin),\
+        $(call phony-status,$(MSG_INSTALL_BIN)); \
+        $(INSTALL_PROGRAM) $b $(i_sbindir)/$(notdir b); \
+        $(call phony-ok,$(MSG_INSTALL_BIN)); \
+    )
+	$(foreach b,$(libexec),\
+        $(call phony-status,$(MSG_INSTALL_BIN)); \
+        $(INSTALL_PROGRAM) $b $(i_libexecdir)/$(notdir b); \
+        $(call phony-ok,$(MSG_INSTALL_BIN)); \
+    )
+
+.PHONY: installdirs
+installdirs:
+	$(if $(strip $(bin)),    $(call mkdir,$(i_bindir)))
+	$(if $(strip $(sbin)),   $(call mkdir,$(i_sbindir)))
+	$(if $(strip $(libexec)),$(call mkdir,$(i_libexecdir)))
+	$(if $(strip $(lib)),    $(call mkdir,$(i_libdir)))
+
+.PHONY: install-docs
+install-docs: install-info install-html install-dvi
+install-docs: install-pdf install-ps
+
+.PHONY: install-info
+install-info: 
+	$(foreach f,$(texiinfo),\
+        $(INSTALL_DATA) $f $(i_infodir)/$(notdir $f);\
+        if $(SHELL) -c '$(INSTALL_INFO) --version' $(NO_OUTOUT) 2>&1; \
+        then \
+            $(INSTALL_INFO) --dir-file="$(i_infodir)/dir" \
+            "$(i_infodir)/$(notdir $f)"; \
+        else true; fi;\
+    )
+
+.PHONY: installcheck
+installcheck:
+	$(call phony-ok,"No installation test avaiable")
+
+########################################################################
+##                          UNINSTALLATION                            ##
+########################################################################
+
+.PHONY: uninstall
+uninstall: uninstall-docs
+	@# Remove installed libraries
+	$(foreach b,$(lib),\
+        $(call phony-status,$(MSG_UNINSTALL_BIN)); \
+        $(RM) $(i_libdir)/$(notdir $b); \
+        $(call phony-ok,$(MSG_INSTALL_BIN)); \
+    )
+	$(call rm-if-empty,$(i_libdir),\
+        $(addprefix $(i_libdir)/,$(notdir $(bin))))
+	
+	@# Remove installed binaries
+	$(foreach b,$(bin),\
+        $(call phony-status,$(MSG_UNINSTALL_BIN)); \
+        $(RM) $(i_bindir)/$(notdir $b); \
+        $(call phony-ok,$(MSG_INSTALL_BIN)); \
+    )
+	$(call rm-if-empty,$(i_bindir),\
+        $(addprefix $(i_bindir)/,$(notdir $(bin))))
+	
+	@# Remove installed shell binaries
+	$(foreach b,$(sbin),\
+        $(call phony-status,$(MSG_UNINSTALL_BIN)); \
+        $(RM) $(i_sbindir)/$(notdir $b); \
+        $(call phony-ok,$(MSG_INSTALL_BIN)); \
+    )
+	$(call rm-if-empty,$(i_sbindir),\
+        $(addprefix $(i_sbindir)/,$(notdir $(sbin))))
+	
+	@# Remove installed library-executable binaries
+	$(foreach b,$(libexec),\
+        $(call phony-status,$(MSG_UNINSTALL_BIN)); \
+        $(RM) $(i_libexecdir)/$(notdir $b); \
+        $(call phony-ok,$(MSG_INSTALL_BIN)); \
+    )
+	$(call rm-if-empty,$(i_libexecdir),\
+        $(addprefix $(i_libexecdir)/,$(notdir $(libexec))))
+
+.PHONY: uninstall-docs
+uninstall-docs: uninstall-info uninstall-html uninstall-dvi
+uninstall-docs: uninstall-pdf uninstall-ps
+
+.PHONY: uninstall-info
+uninstall-info: 
+	$(foreach f,$(texiinfo),\
+        $(call phony-status,$(MSG_UNINSTALL_DOC));\
+        $(RM) $(i_infodir)/$(notdir $f);\
+        $(call phony-ok,$(MSG_UNINSTALL_DOC));\
+    )
+	$(call rm-if-empty,$(i_infodir),\
+        $(addprefix $(i_infodir)/,$(notdir $(texiinfo))))
+
+########################################################################
+##                          DOCUMENTATION                             ##
+########################################################################
+
+.PHONY: docs
+all-docs: $(if $(strip $(doxyfile)),doxy) 
+all-docs: $(if $(strip $(texiall)),info html dvi pdf ps)
+
+ifneq ($(strip $(doxyfile)),) ####
+
+.PHONY: doxy
+doxy: $(docdir)/$(doxyfile).mk
+	$(call phony-status,$(MSG_DOXY_DOCS))
+	$(quiet) $(DOXYGEN) $< $(NO_OUTPUT) $(NO_ERROR)
+	$(call phony-ok,$(MSG_DOXY_DOCS))
+
+$(docdir)/$(doxyfile).mk: | $(docdir) $(docdir)/doxygen
+$(docdir)/$(doxyfile).mk: $(doxyfile) $(srcall) $(incall)
+	$(call status,$(MSG_DOXY_MAKE))
+	$(quiet) $(CP) $< $@
+	
+	@echo "                                                      " >> $@
+	@echo "######################################################" >> $@
+	@echo "##                 MAKEFILE CONFIGS                 ##" >> $@
+	@echo "######################################################" >> $@
+	@echo "                                                      " >> $@
+	@echo "# Project info                                        " >> $@
+	@echo "PROJECT_NAME     = $(PROJECT)                         " >> $@
+	@echo "PROJECT_NUMBER   = $(VERSION)                         " >> $@
+	@echo "                                                      " >> $@
+	@echo "# Source info                                         " >> $@
+	@echo "INPUT            = $(call rsubdir,$(srcdir) $(incdir))" >> $@
+	@echo "FILE_PATTERNS    = $(addprefix *,$(srcext) $(incext)) " >> $@
+	@echo "                                                      " >> $@
+	@echo "OUTPUT_DIRECTORY = $(firstword $(docdir)/doxygen)     " >> $@
+	
+	$(call ok,$(MSG_DOXY_MAKE),$@)
+
+$(doxyfile):
+	$(call status,$(MSG_DOXY_FILE))
+	$(quiet) $(DOXYGEN) -g $@ $(NO_OUTPUT)
+	$(call ok,$(MSG_DOXY_FILE),$@)
+
+$(docdir)/doxygen:
+	$(call mkdir,$(docdir)/doxygen)
+
+endif # ifneq($(strip $(doxyfile)),) ####
 
 ########################################################################
 ##                              RULES                                 ##
 ########################################################################
-
-%.tar.gz: %.tar
-	$(call status,$(MSG_MAKETGZ))
-	$(quiet) $(ZIP) $<
-	$(call ok,$(MSG_MAKETGZ))
-
-%.tar: tarfile = $(notdir $@)
-%.tar: $(bin)
-	$(call mkdir,$(dir $@))
-	$(call mkdir,$(tarfile))
-	$(quiet) $(CP) $(libdir) $(bindir) $(tarfile)
-	
-	$(call vstatus,$(MSG_MAKETAR))
-	$(quiet) $(TAR) $@ $(tarfile)
-	$(call ok,$(MSG_MAKETAR))
-	
-	$(call rmdir,$(tarfile))
 
 #======================================================================#
 # Function: scanner-factory                                            #
@@ -700,7 +1079,7 @@ define scanner-factory
 $1.yy.$2: $3 $$(yaccall)
 	$$(call vstatus,$$(MSG_LEX))
 	$$(quiet) $4 $$(lexflags) -o$$@ $$< 
-	$$(call ok,$$(MSG_LEX))
+	$$(call ok,$$(MSG_LEX),$$@)
 endef
 $(foreach s,$(clexer),$(eval\
     $(call scanner-factory,$(basename $s),c,\
@@ -724,7 +1103,7 @@ $1.tab.$2 $3.tab.$4: $5
 	$$(quiet) $$(call mksubdir,$$(firstword $$(incdir)),$$@)
 	$$(quiet) $6 $$(yaccflags) $$< -o $1.tab.$2
 	$$(quiet) $$(MV) $1.h $3.tab.$4
-	$$(call ok,$$(MSG_YACC))
+	$$(call ok,$$(MSG_YACC),$$@)
 endef
 $(foreach s,$(cparser),$(eval\
     $(call parser-factory,\
@@ -752,11 +1131,11 @@ $$(objdir)/$3%.o: $2%$1 | $$(depdir)
 	$$(call status,$$(MSG_ASM_COMPILE))
 	
 	$$(quiet) $$(call mksubdir,$$(depdir),$$@)
-	$$(quiet) $$(call make-depend,$$<,$$@,$$*)
+	$$(quiet) $$(call make-depend,$$<,$$@,$3$$*)
 	$$(quiet) $$(call mksubdir,$$(objdir),$$@)
 	$$(quiet) $$(AS) $$(ASMFLAGS) $$< -o $$@
 	
-	$$(call ok,$$(MSG_ASM_COMPILE))
+	$$(call ok,$$(MSG_ASM_COMPILE),$$@)
 endef
 $(foreach root,$(srcdir),\
     $(foreach E,$(asmext),\
@@ -775,11 +1154,11 @@ $$(objdir)/$3%.o: $2%$1 | $$(depdir)
 	$$(call status,$$(MSG_C_COMPILE))
 	
 	$$(quiet) $$(call mksubdir,$$(depdir),$$@)
-	$$(quiet) $$(call make-depend,$$<,$$@,$3/$$*)
+	$$(quiet) $$(call make-depend,$$<,$$@,$3$$*)
 	$$(quiet) $$(call mksubdir,$$(objdir),$$@)
-	$$(quiet) $$(CC) $$(cflags) $$(clibs) -c $$< -o $$@
+	$$(quiet) $$(CC) $$(cflags) $$(clibs) -c $$< -o $$@ $$(ERROR)
 	
-	$$(call ok,$$(MSG_C_COMPILE))
+	$$(call ok,$$(MSG_C_COMPILE),$$@)
 endef
 $(foreach root,$(srcdir),$(foreach E,$(cext),\
     $(eval $(call compile-c,$E,$(root)/))))
@@ -801,9 +1180,9 @@ $$(objdir)/$3%.o: $2%$1 | $$(depdir)
 	$$(quiet) $$(call mksubdir,$$(depdir),$$@)
 	$$(quiet) $$(call make-depend,$$<,$$@,$3$$*)
 	$$(quiet) $$(call mksubdir,$$(objdir),$$@)
-	$$(quiet) $$(CXX) $$(cxxlibs) $$(cxxflags) -c $$< -o $$@
+	$$(quiet) $$(CXX) $$(cxxlibs) $$(cxxflags) -c $$< -o $$@ $$(ERROR)
 	
-	$$(call ok,$$(MSG_CXX_COMPILE))
+	$$(call ok,$$(MSG_CXX_COMPILE),$$@)
 endef
 $(foreach root,$(srcdir),$(foreach E,$(cxxext),\
     $(eval $(call compile-cpp,$E,$(root)/))))
@@ -824,12 +1203,12 @@ define compile-sharedlib-linux-c
 $$(objdir)/$2.o: $1$2$3 | $$(depdir)
 	$$(call status,$$(MSG_C_LIBCOMP))
 	
-	$$(quiet) $$(call mksubdir,$$(depdir),$2)
+	$$(quiet) $$(call mksubdir,$$(depdir),$$@)
 	$$(quiet) $$(call make-depend,$$<,$$@,$2)
-	$$(quiet) $$(call mksubdir,$$(objdir),$2)
-	$$(quiet) $$(CC) -fPIC $$(clibs) $$(cflags) -c $$< -o $$@
+	$$(quiet) $$(call mksubdir,$$(objdir),$$@)
+	$$(quiet) $$(CC) -fPIC $$(clibs) $$(cflags) -c $$< -o $$@ $$(ERROR)
 	
-	$$(call ok,$$(MSG_C_LIBCOMP))
+	$$(call ok,$$(MSG_C_LIBCOMP),$$@)
 endef
 $(foreach s,$(foreach E,$(cext),$(filter %$E,$(shrall))),\
     $(eval $(call compile-sharedlib-linux-c,$(call root,$s)/,$(call not-root,$(basename $s)),$(suffix $s))))
@@ -845,56 +1224,53 @@ define compile-sharedlib-linux-cpp
 $$(objdir)/$2.o: $1$2$3 | $$(depdir)
 	$$(call status,$$(MSG_CXX_LIBCOMP))
 	
-	$$(quiet) $$(call mksubdir,$$(depdir),$2)
+	$$(quiet) $$(call mksubdir,$$(depdir),$$@)
 	$$(quiet) $$(call make-depend,$$<,$$@,$2)
-	$$(quiet) $$(call mksubdir,$$(objdir),$2)
-	$$(quiet) $$(CXX) -fPIC $$(cxxlibs) $$(cxxflags) -c $$< -o $$@
+	$$(quiet) $$(call mksubdir,$$(objdir),$$@)
+	$$(quiet) $$(CXX) -fPIC $$(cxxlibs) $$(cxxflags) -c $$< -o $$@ \
+			  $$(ERROR)
 	
-	$$(call ok,$$(MSG_CXX_LIBCOMP))
+	$$(call ok,$$(MSG_CXX_LIBCOMP),$$@)
 endef
 $(foreach s,$(foreach E,$(cxxext),$(filter %$E,$(shrall))),\
     $(eval $(call compile-sharedlib-linux-cpp,$(call root,$s)/,$(call not-root,$(basename $s)),$(suffix $s))))
 
 #======================================================================#
 # Function: link-sharedlib-linux                                       #
-# @param  $1 Root dir                                                  #
-# @param  $2 Subdirectories                                            #
-# @param  $3 File/dir basename                                         #
-# @param  $4 File/dir extension                                        #
+# @param  $1 Directory in which the lib may be put                     #
+# @param  $2 Subdirectories in which the lib may be put                #
+# @param  $3 File/dir basename that makes the name of the dir          #
+# @param  $4 Object dependencies of this static library                #
 # @return Target to create a shared library from objects               #
 #======================================================================#
 define link-sharedlib-linux
-$$(libdir)/$2lib$3.so: $$(shrobj) | $$(libdir)
+$1/$2lib$3.so: $4 | $1
 	$$(call status,$$(MSG_CXX_SHRDLIB))
-	
-	$$(quiet) $$(call mksubdir,$$(libdir),$2)
-	$$(quiet) $$(CXX) $$(soflags) -o $$@ \
-              $$(call src2obj,$$(wildcard $1$2$3$4*)) 
-	
-	$$(call ok,$$(MSG_CXX_SHRDLIB))
+	$$(quiet) $$(call mksubdir,$1,$$(objdir)/$2)
+	$$(quiet) $$(CXX) $$(soflags) -o $$@ $$^ $$(ERROR)
+	$$(call ok,$$(MSG_CXX_SHRDLIB),$$@)
 endef
-$(foreach s,$(shrpat),\
-    $(eval $(call link-sharedlib-linux,$(call root,$s)/,$(call not-root,$(dir $s)),$(notdir $(basename $s)),$(or $(suffix $s),/))))
+$(foreach s,$(shrpatsrc),\
+    $(eval $(call link-sharedlib-linux,$(firstword $(libdir)),$(patsubst ./%,%,$(dir $s)),$(notdir $(basename $s)),$(shrobj_$s))))
 
 #======================================================================#
 # Function: link-statlib-linux                                         #
-# @param  $1 Root dir                                                  #
-# @param  $2 Subdirectories                                            #
-# @param  $3 File/dir basename                                         #
-# @param  $4 File/dir extension                                        #
+# @param  $1 Directory in which the lib may be put                     #
+# @param  $2 Subdirectories in which the lib may be put                #
+# @param  $3 File/dir basename that makes the name of the dir          #
+# @param  $4 Object dependencies of this static library                #
 # @return Target to create a static library from objects               #
 #======================================================================#
 define link-statlib-linux
-$$(libdir)/$2lib$3.a: $$(arobj) | $$(libdir)
+$1/$2lib$3.a: $4 | $1
 	$$(call status,$$(MSG_STATLIB))
-	$$(quiet) $$(call mksubdir,$$(libdir),$2)
-	$$(quiet) $$(AR) $$(arflags) $$@ \
-              $$(call src2obj,$$(wildcard $1$2$3$4*)) $$(O_0) $$(E_0)
+	$$(quiet) $$(call mksubdir,$1,$$(objdir)/$2)
+	$$(quiet) $$(AR) $$(arflags) $$@ $$^ $$(NO_OUTPUT) $$(NO_ERROR)
 	$$(quiet) $$(RANLIB) $$@
-	$$(call ok,$$(MSG_STATLIB))
+	$$(call ok,$$(MSG_STATLIB),$$@)
 endef
-$(foreach a,$(arpat),\
-    $(eval $(call link-statlib-linux,$(call root,$a)/,$(call not-root,$(dir $a)),$(notdir $(basename $a)),$(or $(suffix $a),/))))
+$(foreach a,$(arpatsrc),\
+    $(eval $(call link-statlib-linux,$(firstword $(libdir)),$(patsubst ./%,%,$(dir $a)),$(notdir $(basename $a)),$(arobj_$a))))
 
 #======================================================================#
 # Function: test-factory                                               #
@@ -902,24 +1278,21 @@ $(foreach a,$(arpat),\
 # @param  $2 Object with main function for running unit test           #
 # @param  $3 Object with the code that will be tested by the unit test #
 # @param  $4 Alias to execute tests, prefixing run_ and                #
-# 			 substituting / for _ in $(testdep)						   #
+#            substituting / for _ in $(testdep)                        #
 # @return Target to generate binary file for the unit test             #
 #======================================================================#
 define test-factory
 $1: $2 $3 | $$(bindir)
 	$$(call status,$$(MSG_TEST_COMPILE))
-	
 	$$(quiet) $$(call mksubdir,$$(bindir),$$@)
 	$$(quiet) $$(CXX) $$^ -o $$@ $$(ldflags) $$(ldlibs)
-	
-	$$(call ok,$$(MSG_TEST_COMPILE))
+	$$(call ok,$$(MSG_TEST_COMPILE),$$@)
 
 .PHONY: $4
 $4: $1
-	$$(call status,$$(MSG_TEST))
-	@./$$< $$(NO_OUTPUT) || $$(call shell-error,$$(MSG_TEST_FAILURE))
-	$$(call ok,$$(MSG_TEST))
-
+	$$(call phony-status,$$(MSG_TEST))
+	@./$$< $$(NO_OUTPUT) || $$(call test-error,$$(MSG_TEST_FAILURE))
+	$$(call phony-ok,$$(MSG_TEST))
 endef
 $(foreach s,$(testdep),$(eval\
     $(call test-factory,\
@@ -939,127 +1312,202 @@ $(foreach s,$(testdep),$(eval\
 #         files (to create objdir and automatic source)                #
 #======================================================================#
 define binary-factory
-$1: $$($1_obj) $$($1_lib) | $$(bindir)
-	$$(call status,$$(MSG_CXX_LINKAGE))
-	$$(quiet) $2 $$($1_obj) -o $$(bindir)/$$@ $$(ldflags) $$(ldlibs)
-	$$(call ok,$$(MSG_CXX_LINKAGE))
+$1$2: $$($2_lib) $$($2_obj) $$($2_aobj) | $1
+	$$(call status,$$(MSG_$$(strip $3)_LINKAGE))
+	$$(quiet) $4 $$($2_obj) $$($2_aobj) -o $$@ \
+              $$(ldflags) $$($2_link) $$(ldlibs) $$(ERROR)
+	$$(call ok,$$(MSG_$$(strip $3)_LINKAGE),$$@)
 
-$$($1_obj): | $$(objdir)
+$$($2_obj): | $$(objdir)
 
-$$($1_aobj): $$($1_aall) | $$(objdir)
+$$($2_aobj): $$($2_aall) | $$(objdir)
 endef
-$(foreach b,$(bin),$(eval\
-    $(call binary-factory,$b,$(if $($b_is_cxx),$(CXX),$(CC)),\
-        $(if $($b_is_cxx),$(MSG_CXX_LINKAGE),$(MSG_C_LINKAGE)))\
+$(foreach b,$(binall),$(eval\
+    $(call binary-factory,$(dir $b),$(notdir $b),\
+        $(if $($(strip $(notdir $b))_is_cxx),CXX,C),\
+        $(if $($(strip $(notdir $b))_is_cxx),$(CXX),$(CC)))\
 ))
+
+#======================================================================#
+# Function: texinfo-factory                                            #
+# @param  $1 Type of doc to be generated                               #
+# @param  $2 Extension that should be used for the doc file type       #
+# @param  $3 Command to generate the doc file                          #
+# @return Three targets: one to generate all files of a doc type; one  #
+#         general target to create the files of this doc type; and a   #
+#         target to generate the dir where the files should be put     #
+#======================================================================#
+define texinfo-factory
+.PHONY: $1
+$1: $$(texi$1)
+	$$(call phony-ok,$$(MSG_TEXI_DOCS))
+
+$$(docdir)/$1/%$2: $$(filter $$(docdir)/$$*%,$$(texiall)) | $$(docdir)/$1
+	$$(call status,$$(MSG_TEXI_FILE))
+	$$(call mksubdir,$$(docdir)/$1,$$<)
+	$$(quiet) $3 $$< -o $$@ $$(ERROR)
+	$$(call srm,$$(notdir $$(basename $$@)).*)
+	$$(call ok,$$(MSG_TEXI_FILE),$$@)
+
+$$(docdir)/$1:
+	$$(quiet) $$(call mkdir,$$@)
+endef
+$(eval $(call texinfo-factory,info,$(firstword $(infoext)),$(MAKEINFO)))
+$(eval $(call texinfo-factory,html,$(firstword $(htmlext)),$(TEXI2HTML)))
+$(eval $(call texinfo-factory,dvi,$(firstword $(dviext)),$(TEXI2DVI)))
+$(eval $(call texinfo-factory,pdf,$(firstword $(pdfext)),$(TEXI2PDF)))
+$(eval $(call texinfo-factory,ps,$(firstword $(psext)),$(TEXI2PS)))
+
+#======================================================================#
+# Function: install-texinfo-factory                                    #
+# @param  $1 Type of doc to be generated                               #
+# @return Two targets: one to install the files of the specified doc   #
+#         type (creating the directory as needed); and another one to  #
+#         uninstall these files and delete the dir (if empty).         #
+#======================================================================#
+define install-texinfo-factory
+.PHONY: install-$1
+install-$1:
+	$$(call mkdir,$$(i_$1dir))
+	$$(foreach f,$$(texi$1),\
+        $$(call phony-status,$$(MSG_INSTALL_DOC));\
+        $$(INSTALL_DATA) $$f $$(i_$1dir)/$$(notdir $$f);\
+        $$(call phony-ok,$$(MSG_INSTALL_DOC));\
+    )
+
+.PHONY: uninstall-$1
+uninstall-$1:
+	$$(foreach f,$$(texi$1),\
+        $$(call phony-status,$$(MSG_UNINSTALL_DOC));\
+        $$(RM) $$(i_$1dir)/$$(notdir $$f);\
+        $$(call phony-ok,$$(MSG_UNINSTALL_DOC));\
+    )
+	$$(call rm-if-empty,$$(i_$1dir),\
+        $$(addprefix $$(i_$1dir)/,$$(notdir $$(texi$1))))
+endef
+$(foreach type,html dvi pdf ps,\
+    $(eval $(call install-texinfo-factory,$(type))))
+
+#======================================================================#
+# Function: packsyst-factory                                           #
+# @param  $1 Extension of the file package system                      #
+# @param  $2 Part of the name of the var with text to be outputed      #
+# @param  $3 Program to be used to generate the package                #
+# @return Target to create a package with dirs specified by 'dirs' var #
+#======================================================================#
+define packsyst-factory
+%.$1: packdir = $$(notdir $$@)_dir
+%.$1: packdep = $$(addprefix $$(packdir)/,\
+        $$(foreach f,$$(dirs),$$(call rwildcard,$$f,*)))
+%.$1: $$(binall)
+	$$(call mkdir,$$(dir $$@))
+	$$(quiet) $$(MKDIR) $$(packdir)
+	$$(quiet) $$(CP) $$(dirs) $$(packdir)
+	
+	$$(call vstatus,$$(MSG_MAKE$2))
+	$$(quiet) $3 $$@ $$(packdep)
+	$$(call ok,$$(MSG_MAKE$2),$$@)
+	
+	$$(quiet) $$(RMDIR) $$(packdir)
+endef
+$(eval $(call packsyst-factory,tar,TAR,$(TAR)))
+$(eval $(call packsyst-factory,zip,ZIP,$(ZIP)))
+
+#======================================================================#
+# Function: compression-factory                                        #
+# @param  $1 Extension to be added in the compressed file              #
+# @param  $2 Extension of the uncompressed file (for dependency)       #
+# @param  $3 Part of the name of the var with text to be outputed      #
+# @param  $4 Program to be used to generate the compressed package     #
+# @return Target to create a compressed package from uncompressed one  #
+#======================================================================#
+define compression-factory
+%.$1: %.$2
+	$$(call status,$$(MSG_MAKE$3))
+	$$(quiet) $4 $$< $$(ERROR)
+	$$(call ok,$$(MSG_MAKE$3),$$@)
+endef
+$(eval $(call compression-factory,tgz,tar,TGZ,$(GZIP)))
+$(eval $(call compression-factory,tbz2,tar,TBZ2,$(BZIP2)))
+$(eval $(call compression-factory,tar.gz,tar,TGZ,$(GZIP)))
+$(eval $(call compression-factory,tar.bz2,tar,TBZ2,$(BZIP2)))
+
+#======================================================================#
+# Function: dist-factory                                               #
+# @param  $1 Extension of the file package system                      #
+# @return Phony targets to create a binary distribution and a source   #
+#         distribution of the project                                  #
+#======================================================================#
+define dist-factory
+.PHONY: package-$1
+package-$1: dirs := $$(srcdir) $$(incdir) $$(datadir)
+package-$1: dirs += $$(docdir) $$(LICENSE) $$(NOTICE)
+package-$1: dirs += $$(if $$(strip $$(lib)),$$(libdir)) $$(bindir) 
+package-$1: $$(distdir)/$$(PROJECT)-$$(VERSION)_src.$1
+
+.PHONY: dist-$1
+dist-$1: dirs := $$(if $$(strip $$(lib)),$$(libdir)) $$(bindir)
+dist-$1: $$(distdir)/$$(PROJECT)-$$(VERSION).$1
+endef
+$(foreach e,tar.gz tar.bz2 tar zip tgz tbz2,\
+    $(eval $(call dist-factory,$e)))
 
 ########################################################################
 ##                              CLEAN                                 ##
 ########################################################################
 .PHONY: mostlyclean
 mostlyclean:
-	$(call srm,$(objall))
-	$(call rmdir,$(objdir))
+	$(call rm-if-empty,$(objdir),$(objall))
 
 .PHONY: clean
 clean: mostlyclean
-	$(call srm,$(lib))
-	$(call rmdir,$(libdir))
-	$(call srm,$(bin))
-	$(call rmdir,$(bindir))
+	$(call rm-if-empty,$(bindir),$(bin))
+	$(call rm-if-empty,$(sbindir),$(sbin))
+	$(call rm-if-empty,$(execdir),$(libexec))
 
 .PHONY: distclean
 distclean: clean
-	$(call srm,$(depall))
-	$(call rmdir,$(depdir) $(call subdir,depdir))
-	$(call srm,$(PROJECT)-$(VERSION).tar)
-	$(call srm,$(PROJECT)-$(VERSION).tar.gz)
-	$(call rmdir,$(distdir))
+	$(call rm-if-empty,$(depdir),$(depall))
+	$(call rm-if-empty,$(distdir))
+	$(call rm-if-empty,$(firstword $(libdir)),\
+        $(filter $(firstword $(libdir))/%,$(lib))\
+    )
+
+.PHONY: docclean
+docclean:
+	$(call rm-if-empty,$(docdir)/doxygen)
+	$(call rm-if-empty,$(docdir)/info,$(texiinfo))
+	$(call rm-if-empty,$(docdir)/html,$(texihtml))
+	$(call rm-if-empty,$(docdir)/dvi,$(texidvi))
+	$(call rm-if-empty,$(docdir)/pdf,$(texipdf))
+	$(call rm-if-empty,$(docdir)/ps,$(texips))
 
 .PHONY: realclean
-realclean: distclean
+realclean: docclean distclean
 	$(if $(lexall),\
         $(call rm,$(lexall)),\
-        $(call ok,$(MSG_LEX_NONE))  )
+        $(call phony-ok,$(MSG_LEX_NONE))  )
 	$(if $(yaccall),\
         $(call rm,$(yaccall) $(yaccinc)),\
-        $(call ok,$(MSG_YACC_NONE)) )
+        $(call phony-ok,$(MSG_YACC_NONE)) )
+
+.PHONY: mainteiner-clean
+mainteiner-clean: 
+	@$(MAKE) realclean MAINTEINER_CLEAN=1
 
 .PHONY: uninitialize
-ifneq ($U,1)
+ifndef U
 uninitialize:
 	@echo $(MSG_UNINIT_WARN)
 	@echo $(MSG_UNINIT_ALT)
 else
-uninitialize: realclean
-	$(call srm,$(srcall))
-	$(call rmdir,$(srcdir))
-	$(call srm,$(incall))
-	$(call rmdir,$(incdir))
+uninitialize: mainteiner-clean
+	$(call rm-if-empty,$(srcdir),$(srcall))
+	$(call rm-if-empty,$(incdir),$(incall))
+	$(call rm-if-empty,$(docdir),$(texiall))
 	$(call rm,Config.mk config.mk)
 	$(call rm,Config_os.mk config_os.mk)
 endif
-
-########################################################################
-##                             FUNCIONS                               ##
-########################################################################
-# Directories
-$(sort $(bindir) $(objdir) $(depdir) $(libdir)):
-	$(call mkdir,$@)
-
-define src2obj
-$(foreach root,$(srcdir),                 \
-    $(addprefix $(objdir)/,               \
-        $(patsubst $(root)/%,%,           \
-            $(addsuffix .o,               \
-                $(basename                \
-                    $(filter $(root)/%,$1 \
-))))))
-endef
-
-define srm
-	$(quiet) $(RM) $1
-endef
-
-define rm
-$(if $(strip $(patsubst .,,$1)),\
-	$(call status,$(MSG_RM))
-	$(quiet) $(RM) $1
-	$(call ok,$(MSG_RM))
-)
-endef
-
-define rmdir
-	$(if $(strip $(patsubst .,,$1)), $(call status,$(MSG_RMDIR)) )
-	$(if $(strip $(patsubst .,,$1)), $(quiet) $(RMDIR) $1        )
-	$(if $(strip $(patsubst .,,$1)), $(call ok,$(MSG_RMDIR))     )
-endef
-
-define mkdir
-	$(if $(strip $(patsubst .,,$1)), $(call status,$(MSG_MKDIR)) )
-	$(if $(strip $(patsubst .,,$1)), $(quiet) $(MKDIR) $1        )
-	$(if $(strip $(patsubst .,,$1)), $(call ok,$(MSG_MKDIR))     )
-endef
-
-define mksubdir
-$(if $(strip $(patsubst .,,$1)),\
-	$(MKDIR) $1/$(call not-root,$(dir $2))
-)
-endef
-
-# Function: make-depend
-# @param $1 Source name (with path)
-# @param $2 Main target to be analised
-# @param $3 Dependency file name
-define make-depend
-$(CXX) -MM                    \
-	-MF $(depdir)/$3$(depext) \
-	-MP                       \
-	-MT $2                    \
-	$(cxxlibs)                \
-	$(cxxflags)               \
-	$1
-endef
 
 ########################################################################
 ##                              OUTPUT                                ##
@@ -1076,6 +1524,8 @@ NO_OUTPUT := $(O_$V)
 NO_ERROR  := $(E_$V)
 
 # ANSII Escape Colors
+ifndef NO_COLORS
+DEF     := \033[0;38m
 RED     := \033[1;31m
 GREEN   := \033[1;32m
 YELLOW  := \033[1;33m
@@ -1084,60 +1534,412 @@ PURPLE  := \033[1;35m
 CYAN    := \033[1;36m
 WHITE   := \033[1;37m
 RES     := \033[0m
+ERR     := \033[0;37m
+endif
 
-MSG_RM           = "${BLUE}Removing ${RES}$1${RES}"
-MSG_MKDIR        = "${CYAN}Creating directory $1${RES}"
-MSG_RMDIR        = "${BLUE}Removing directory ${CYAN}$1${RES}"
-MSG_UNINIT_WARN  = "${RED}Are you sure you want to delete all"\
-				   "sources, headers and configuration files?"
-MSG_UNINIT_ALT   = "Run ${BLUE}'make uninitialize U=1'${RES}"
+MSG_CMD_UNRECOG   = "${RED}Command $@ unknown. Type '${DEF}make"\
+                    "projecthelp${RED}' for valid targets.${RES}"
 
-MSG_LEX          = "${PURPLE}Generating scanner $@${RES}"
-MSG_LEX_NONE     = "${PURPLE}No auto-generated lexers${RES}"
-MSG_LEX_COMPILE  = "Compiling scanner ${WHITE}$@${RES}"
-MSG_YACC         = "${PURPLE}Generating parser ${BLUE}$@${RES}"
-MSG_YACC_NONE    = "${PURPLE}No auto-generated parsers${RES}"
-MSG_YACC_COMPILE = "Compiling parser ${WHITE}$@${RES}"
+MSG_RM            = "${BLUE}Removing ${RES}$1${RES}"
+MSG_MKDIR         = "${CYAN}Creating directory $1${RES}"
+MSG_UNINIT_WARN   = "${RED}Are you sure you want to delete all"\
+                    "sources, headers and configuration files?"
+MSG_UNINIT_ALT    = "${DEF}Run ${BLUE}'make uninitialize U=1'${RES}"
 
-MSG_TEST         = "${BLUE}Testing ${WHITE}$(notdir $<)${RES}"
-MSG_TEST_COMPILE = "Generating test executable ${GREEN}$(notdir $@)${RES}"
-MSG_TEST_FAILURE = "${CYAN}Test $(notdir $@) not passed${RES}"
-MSG_TEST_SUCCESS = "${YELLOW}All tests passed successfully${RES}"
+MSG_MOVE          = "${YELLOW}Populating directory $(firstword $2)${RES}"
+MSG_NO_MOVE       = "${PURPLE}Nothing to put in $(firstword $2)${RES}"
 
-MSG_STATLIB      = "${RED}Generating static library $@${RES}"
-MSG_MAKETAR      = "${RED}Generating tar file $@${RES}"
-MSG_MAKETGZ      = "${RED}Ziping file $@${RES}"
+MSG_TOUCH         = "${PURPLE}Creating new file ${DEF}${ostream}${RES}"
+MSG_DELETE_WARN   = "${RED}Are you sure you want to do deletes?${RES}"
+MSG_DELETE_ALT    = "${DEF}Run ${BLUE}'make delete FLAGS D=1'${RES}"
 
-MSG_ASM_COMPILE  = "Generating Assembly artifact ${WHITE}$@${RES}"
+MSG_RMDIR         = "${BLUE}Removing directory ${CYAN}$1${RES}"
+MSG_RM_NOT_EMPTY  = "${PURPLE}Directory ${WHITE}$1${RES} not empty"
+MSG_RM_EMPTY      = "${PURPLE}Nothing to remove in $1${RES}"
 
-MSG_C_COMPILE    = "Generating C artifact ${WHITE}$@${RES}"
-MSG_C_LINKAGE    = "${YELLOW}Generating C executable ${GREEN}$@${RES}"
-MSG_C_SHRDLIB    = "${RED}Generating C shared library $@${RES}"
-MSG_C_LIBCOMP    = "Generating C library artifact ${YELLOW}$@${RES}"
+MSG_TEXI_FILE     = "${DEF}Generating $1 file ${WHITE}$@${RES}"
+MSG_TEXI_DOCS     = "${BLUE}Generating docs in ${WHITE}$@${RES}"
 
-MSG_CXX_COMPILE  = "Generating C++ artifact ${WHITE}$@${RES}"
-MSG_CXX_LINKAGE  = "${YELLOW}Generating C++ executable ${GREEN}$@${RES}"
-MSG_CXX_SHRDLIB  = "${RED}Generating C++ shared library $@${RES}"
-MSG_CXX_LIBCOMP  = "Generating C++ library artifact ${YELLOW}$@${RES}"
+MSG_DOXY_DOCS     = "${YELLOW}Generating Doxygen docs${RES}"
+MSG_DOXY_FILE     = "${BLUE}Generating Doxygen file ${WHITE}$@${RES}"
+MSG_DOXY_MAKE     = "${BLUE}Generating Doxygen config ${WHITE}$@${RES}"
+
+MSG_INSTALL_BIN   = "${DEF}Installing binary file ${GREEN}$b${RES}"
+MSG_UNINSTALL_BIN = "${DEF}Uninstalling binary file ${GREEN}$b${RES}"
+MSG_INSTALL_DOC   = "${DEF}Installing document file ${BLUE}$f${RES}"
+MSG_UNINSTALL_DOC = "${DEF}Uninstalling document file ${BLUE}$f${RES}"
+
+MSG_LEX           = "${PURPLE}Generating scanner $@${RES}"
+MSG_LEX_NONE      = "${PURPLE}No auto-generated lexers${RES}"
+MSG_LEX_COMPILE   = "${DEF}Compiling scanner ${WHITE}$@${RES}"
+MSG_YACC          = "${PURPLE}Generating parser ${BLUE}$@${RES}"
+MSG_YACC_NONE     = "${PURPLE}No auto-generated parsers${RES}"
+MSG_YACC_COMPILE  = "${DEF}Compiling parser ${WHITE}$@${RES}"
+
+MSG_TEST          = "${BLUE}Testing ${WHITE}$(notdir $<)${RES}"
+MSG_TEST_COMPILE  = "${DEF}Generating test executable"\
+                    "${GREEN}$(notdir $(strip $@))${RES}"
+MSG_TEST_FAILURE  = "${CYAN}Test $(notdir $@) not passed${RES}"
+MSG_TEST_SUCCESS  = "${YELLOW}All tests passed successfully${RES}"
+
+MSG_STATLIB       = "${RED}Generating static library $@${RES}"
+MSG_MAKETAR       = "${RED}Generating tar file ${BLUE}$@${RES}"
+MSG_MAKEZIP       = "${RED}Generating zip file ${BLUE}$@${RES}"
+MSG_MAKETGZ       = "${YELLOW}Compressing file ${BLUE}$@"\
+                    "${YELLOW}(gzip)${RES}"
+MSG_MAKETBZ2      = "${YELLOW}Compressing file ${BLUE}$@"\
+                    "${YELLOW}(bzip2)${RES}"
+
+MSG_ASM_COMPILE   = "${DEF}Generating Assembly artifact ${WHITE}$@${RES}"
+
+MSG_C_COMPILE     = "${DEF}Generating C artifact ${WHITE}$@${RES}"
+MSG_C_LINKAGE     = "${YELLOW}Generating C executable ${GREEN}$@${RES}"
+MSG_C_SHRDLIB     = "${RED}Generating C shared library $@${RES}"
+MSG_C_LIBCOMP     = "${DEF}Generating C library artifact"\
+                    "${YELLOW}$@${RES}"
+
+MSG_CXX_COMPILE   = "${DEF}Generating C++ artifact ${WHITE}$@${RES}"
+MSG_CXX_LINKAGE   = "${YELLOW}Generating C++ executable ${GREEN}$@${RES}"
+MSG_CXX_SHRDLIB   = "${RED}Generating C++ shared library $@${RES}"
+MSG_CXX_LIBCOMP   = "${DEF}Generating C++ library artifact"\
+                    "${YELLOW}$@${RES}"
+
+########################################################################
+##                            FUNCTIONS                               ##
+########################################################################
+
+## DEPENDENCIES ########################################################
+# Function: make-depend
+# @param $1 Source name (with path)
+# @param $2 Main target to be analised
+# @param $3 Dependency file name
+define make-depend
+$(CXX) -MM                    \
+    -MF $(depdir)/$3$(depext) \
+    -MP                       \
+    -MT $2                    \
+    $(cxxlibs)                \
+    $(cxxflags)               \
+    $1
+endef
+
+## DIRECTORIES #########################################################
+$(sort $(bindir) $(sbindir) $(execdir) ):
+	$(call mkdir,$@)
+
+$(sort $(objdir) $(depdir) $(libdir) $(docdir) ):
+	$(call mkdir,$@)
+
+define mkdir
+	$(if $(strip $(patsubst .,,$1)), $(call phony-status,$(MSG_MKDIR)) )
+	$(if $(strip $(patsubst .,,$1)), $(quiet) $(MKDIR) $1              )
+	$(if $(strip $(patsubst .,,$1)), $(call phony-ok,$(MSG_MKDIR))     )
+endef
+
+define mksubdir
+$(if $(strip $(patsubst .,,$1)),\
+	$(quiet) $(MKDIR) $1/$(strip $(call not-root,$(dir $2))))
+endef
+
+define mv
+$(if $(strip $(foreach e,$(strip $1),$(wildcard *$e))),\
+    $(if $(strip $(wildcard $(firstword $2/*))),,\
+        $(call mkdir,$(firstword $2))\
+))
+$(call phony-status,$(MSG_MOVE))
+$(quiet) $(strip $(foreach e,$(strip $1),\
+    $(if $(strip $(wildcard *$e)),\
+        $(MV) $(wildcard *$e) $(firstword $2); )\
+))
+$(if $(strip $(foreach e,$(strip $1),$(wildcard *$e))),\
+    $(call phony-ok,$(MSG_MOVE)),\
+    $(call phony-ok,$(MSG_NO_MOVE))\
+)
+endef
+
+## REMOTION ############################################################
+define srm
+	$(quiet) $(RM) $1 $(NO_ERROR)
+endef
+
+define srmdir
+	$(if $(strip $(patsubst .,,$1)), $(quiet) $(RMDIR) $1)
+endef
+
+define rm
+$(if $(strip $(patsubst .,,$1)),\
+	$(call phony-status,$(MSG_RM))
+	$(quiet) $(RM) $1
+	$(call phony-ok,$(MSG_RM))
+)
+endef
+
+define rmdir
+	$(if $(strip $(patsubst .,,$1)), $(call phony-status,$(MSG_RMDIR)) )
+	$(if $(strip $(patsubst .,,$1)), $(quiet) $(RMDIR) $1              )
+	$(if $(strip $(patsubst .,,$1)), $(call phony-ok,$(MSG_RMDIR))     )
+endef
+
+#======================================================================#
+# Function: rm-if-empty                                                #
+# If MAINTEINER_CLEAN is setted, it does not test for extra files.     #
+# @param  $1 Directory name                                            #
+# @param  $2 Files in $1 that should be removed from within $1         #
+# .---------------.---------.-------------.------------.               #
+# | Dir not empty | 2nd arg | Extra files | Result     |               #
+# |===============|=========|=============|============|               #
+# |               |         |             | nothing    | } When dir is #
+# |               |         |      X      | nothing    | } empty, it   #
+# |               |    X    |             | nothing    | } doesn't     #
+# |               |    X    |      X      | nothing    | } exist       #
+# |       X       |         |             | remove     | - No restric. #
+# |       X       |         |      X      | remove     | - or restric. #
+# |       X       |    X    |             | remove     | - ok? Remove! #
+# |       X       |    X    |      X      | not_remove | } Not remove, #
+# '---------------'---------'-------------'------------'   otherwise   #
+#======================================================================#
+define rm-if-empty
+	$(if $(strip $2),$(call srm,$2))
+	$(if $(strip $(call rwildcard,$1,*)),\
+        $(if $(strip $2),
+            $(if $(strip $(MAINTEINER_CLEAN)),\
+				$(call rmdir,$1),\
+                $(if $(strip $(call rfilter-out,$2,\
+                        $(call rfilter-out,\
+                            $(filter-out $1,$(call rsubdir,$1)),\
+                            $(call rwildcard,$1,*)))),\
+                    $(call phony-ok,$(MSG_RM_NOT_EMPTY)),\
+                    $(call rmdir,$1)\
+            )),\
+            $(call rmdir,$1)\
+        ),\
+        $(call phony-ok,$(MSG_RM_EMPTY))\
+    )
+endef
+
+## STATUS ##############################################################
+ifdef SILENT
+V := 1
+else
 
 ifneq ($(strip $(quiet)),)
-    define status
+    define phony-status
     	@echo -n $1 "... "
+    endef
+    
+    define status
+    	@$(RM) $@ && echo -n $1 "... "
     endef
 
     define vstatus
-    	@echo $1 "... "
+    	@$(RM) $@ && echo $1 "... "
     endef
 endif
 
-define shell-error
+define phony-ok
+	@echo "\r${GREEN}[OK]${RES}" $1 "     "
+endef
+
+define ok
+@if [ -f $2 ]; then\
+	echo "\r${GREEN}[OK]${RES}" $1 "     ";\
+else\
+	echo "\r${RED}[ERROR]${RES}" $1 "${RED}(STATUS: $$?)${RES}"; exit 1;\
+fi
+endef
+
+define exit-with-error
+	@echo "${RED}[ERROR]${RES}" $1; exit 1;
+endef
+
+endif
+## ERROR ###############################################################
+ifndef MORE
+    define ERROR 
+    2>&1 | sed '1 i error' | sed 's/^/> /' | sed ''/"> error"/s//`printf "${ERR}"`/''
+    endef
+else
+    define ERROR 
+    2>&1 | more
+    endef
+endif 
+
+define test-error
 (echo "\r${RED}[FAILURE]${RES}" $1"."\
       "${RED}Aborting status: $$?${RES}" && exit 1)
 endef
 
-define ok
-	@echo "\r${GREEN}[OK]${RES}" $1 "     "
+## TEXT ################################################################
+define uc
+$(shell echo $1 | tr "a-z" "A-Z")
 endef
+
+define lc
+$(shell echo $1 | tr "A-Z" "a-z")
+endef
+
+# Function: select 
+# Define which ostream should be used
+define select
+$(eval ostream = \
+    $(strip $(if $(strip $(subst stdout,,$(strip $1))),$1,)))
+endef
+
+# Function: select 
+# Add a text in the end of a ostream
+define cat
+$(if $(strip $(wildcard $(ostream)*)),,\
+    @echo $1 $(if $(strip $(ostream)),>> $(ostream)))
+endef
+
+# Function: touch
+# Create a new file based on a model
+# @param $1 file to be used as a model
+define touch
+$(if $(wildcard $(ostream)*),,\
+    $(call phony-status,$(MSG_TOUCH)))
+$(if $(wildcard $(ostream)*),,\
+    $(if $(strip $1),\
+        $(quiet) cat $1 > $(ostream),\
+        $(quiet) touch $(ostream)))
+$(if $(wildcard $(ostream)*),,\
+    $(call phony-ok,$(MSG_TOUCH)))
+endef
+
+########################################################################
+##                           MANAGEMENT                               ##
+########################################################################
+
+# Namespace/Module variable
+# ===========================
+# 1) Remove trailing bars if it is a directory-only name
+# 2) If the name includes a root src/inc directory, remove-it.
+# 3) Manipulates IN to be used in a #ifndef C/C++ preproc directive
+ifdef IN
+#------------------------------------------------------------------[ 1 ]
+override IN := $(strip $(call remove-trailing-bar,$(IN)))
+#------------------------------------------------------------------[ 2 ]
+override IN := $(strip $(or $(strip $(foreach d,$(srcdir) $(incdir),\
+                   $(if $(strip $(patsubst $d%,%,$(call root,$(IN)))),,\
+                       $(call not-root,$(IN))\
+               ))),$(IN)))
+#------------------------------------------------------------------[ 3 ]
+indef       := $(strip $(call uc,$(subst /,_,$(strip $(IN)))))_
+endif
+
+# Path variables
+# ================
+# Auxiliar variables to the default place to create/remove 
+# files created by this makefile (usually the first inc/src dirs)
+override incbase   := $(strip $(firstword $(incdir)))$(if $(IN),/$(IN))
+override srcbase   := $(strip $(firstword $(srcdir)))$(if $(IN),/$(IN))
+
+# Artifacts
+# ===========
+# C/C++ Artifacts that may be created by this Makefile
+override NAMESPACE := $(notdir $(NAMESPACE))
+override CLASS     := $(basename $(notdir $(CLASS)))
+override C_FILE    := $(basename $(notdir $(C_FILE)))
+override CXX_FILE  := $(basename $(notdir $(CXX_FILE)))
+override TEMPLATE  := $(basename $(notdir $(TEMPLATE)))
+
+.PHONY: new
+new:
+ifdef NAMESPACE
+	$(call mkdir,$(incbase)/$(NAMESPACE))
+	$(call mkdir,$(srcbase)/$(NAMESPACE))
+endif
+ifdef CLASS
+	$(call select,$(incbase)/$(CLASS).hpp)
+	$(call touch,$(NOTICE))
+	$(call cat,'                                                      ')
+	$(call cat,'#ifndef HPP_$(indef)$(call uc,$(CLASS))_DEFINED       ')
+	$(call cat,'#define HPP_$(indef)$(call uc,$(CLASS))_DEFINED       ')
+	$(call cat,'                                                      ')
+	$(call cat,'class $(CLASS)                                        ')
+	$(call cat,'{                                                     ')
+	$(call cat,'                                                      ')
+	$(call cat,'};                                                    ')
+	$(call cat,'                                                      ')
+	$(call cat,'#endif                                                ')
+	
+	$(call select,$(srcbase)/$(CLASS).cpp)
+	$(call touch,$(NOTICE))
+	$(call cat,'                                                      ')
+	$(call cat,'// Libraries                                          ')
+	$(call cat,'#include "$(CLASS).hpp"                               ')
+	$(call cat,'                                                      ')
+	
+	$(call select,stdout)
+endif
+ifdef C_FILE                                                            
+	$(call select,$(incbase)/$(C_FILE).h)
+	$(call touch,$(NOTICE))
+	$(call cat,'                                                      ')
+	$(call cat,'#ifndef H_$(indef)$(call uc,$(C_FILE))_DEFINED        ')
+	$(call cat,'#define H_$(indef)$(call uc,$(C_FILE))_DEFINED        ')
+	$(call cat,'                                                      ')
+	$(call cat,'#endif                                                ')
+	
+	$(call select,$(srcbase)/$(C_FILE).c)
+	$(call touch,$(NOTICE))
+	$(call cat,'                                                      ')
+	$(call cat,'// Libraries                                          ')
+	$(call cat,'#include "$(C_FILE).hpp"                              ')
+	$(call cat,'                                                      ')
+	
+	$(call select,stdout)
+endif
+ifdef CXX_FILE                                                          
+	$(call select,$(incbase)/$(CXX_FILE).hpp)
+	$(call touch,$(NOTICE))
+	$(call cat,'                                                      ')
+	$(call cat,'#ifndef HPP_$(indef)$(call uc,$(CXX_FILE))_DEFINED    ')
+	$(call cat,'#define HPP_$(indef)$(call uc,$(CXX_FILE))_DEFINED    ')
+	$(call cat,'                                                      ')
+	$(call cat,'#endif                                                ')
+	
+	$(call select,$(srcbase)/$(CXX_FILE).cpp)
+	$(call touch,$(NOTICE))
+	$(call cat,'                                                      ')
+	$(call cat,'// Libraries                                          ')
+	$(call cat,'#include "$(CXX_FILE).hpp"                            ')
+	$(call cat,'                                                      ')
+	
+	$(call select,stdout)
+endif
+ifdef TEMPLATE
+	$(call select,$(srcbase)/$(TEMPLATE).tcc)
+	$(call touch,$(NOTICE))
+	$(call select,stdout)
+endif
+
+.PHONY: delete
+delete:
+ifndef D
+	@echo $(MSG_DELETE_WARN)
+	@echo $(MSG_DELETE_ALT)
+else
+ifdef NAMESPACE
+	$(call rmdir,$(incbase)/$(NAMESPACE))
+	$(call rmdir,$(srcbase)/$(NAMESPACE))
+endif
+ifdef CLASS
+	$(call rm,$(incbase)/$(CLASS).hpp)
+	$(call rm,$(srcbase)/$(CLASS).cpp)
+endif
+ifdef C_FILE
+	$(call rm,$(incbase)/$(C_FILE).h)
+	$(call rm,$(srcbase)/$(C_FILE).c)
+endif
+ifdef CXX_FILE
+	$(call rm,$(incbase)/$(CXX_FILE).hpp)
+	$(call rm,$(srcbase)/$(CXX_FILE).cpp)
+endif
+ifdef TEMPLATE
+	$(call rm,$(incbase)/$(TEMPLATE).tcc)
+endif
+endif
 
 ########################################################################
 ##                         HELP AND CONFIGS                           ##
@@ -1146,24 +1948,63 @@ endef
 .PHONY: config
 config:
 	@echo "                                                            "
+	@echo "############################################################"
+	@echo "##         DELETE ANY TARGET TO USE THE DEFAULT!          ##"
+	@echo "############################################################"
+	@echo "                                                            "
 	@echo "# Project setting                                           "
-	@echo "PROJECT := # Project name. Default is 'Default'             "
-	@echo "VERSION := # Version. Default is '1.0'                      "
+	@echo "PROJECT  := # Project name. Default is 'Default'            "
+	@echo "VERSION  := # Version. Default is '1.0'                     "
 	@echo "                                                            "
 	@echo "# Program settings                                          "
-	@echo "BIN     := # Binaries' names. If a subdir of the source     "
-	@echo "           # directories has the same name of this binary,  "
-	@echo "           # this dir and all subdir will be compiled just  "
-	@echo "           # to this specific binary.                       "
+	@echo "BIN      := # Binaries' names. If a subdir of the source    "
+	@echo "            # directories has the same name of this binary, "
+	@echo "            # this dir and all subdir will be compiled      "
+	@echo "            # only for this specific binary.                "
+	@echo "SBIN     := # Same as above, but for shell-only binaries.   "
+	@echo "LIBEXEC  := # Again, but for binaries runnable only by      "
+	@echo "            # other programs, not normal users.             "
 	@echo "                                                            "
-	@echo "ARLIB   := # Static/Shared libraries' names. If one is a    "
-	@echo "SHRLIB  := # lib, all source files will make the library.   "
+	@echo "ARLIB    := # Static/Shared libraries' names. If one is a   "
+	@echo "SHRLIB   := # lib, all source files will make the library.  "
 	@echo "                                                            "
 	@echo "# Flags                                                     "
-	@echo "ASFLAGS   := # Assembly Flags                               "
-	@echo "CFLAGS    := # C Flags                                      "
-	@echo "CXXFLAGS  := # C++ Flags                                    "
-	@echo "LDFLAGS   := # Linker flags                                 "
+	@echo "ASFLAGS  := # Assembly Flags                                "
+	@echo "CFLAGS   := # C Flags                                       "
+	@echo "CXXFLAGS := # C++ Flags                                     "
+	@echo "LDFLAGS  := # Linker flags                                  "
+	@echo "                                                            "
+	@echo "# Documentation                                             "
+	@echo "LICENSE  := # File with a License (def: LICENSE)            "
+	@echo "NOTICE   := # File with a Notice of the License, to be used "
+	@echo "            # in the beggining of any file (def: NOTICE).   "
+	@echo "DOXYFILE := # Config file for Doxygen (def: Doxyfile)       "
+	@echo "                                                            "
+
+.PHONY: gitignore
+gitignore:
+	@echo "                                                            "
+	@echo "# Automatically generated directories                       "
+	@echo "#======================================                     "
+	@$(foreach d,$(depdir),echo $d/; )
+	@$(foreach d,$(objdir),echo $d/; )
+	@$(foreach d,$(libdir),echo $d/; )
+	@$(foreach d,$(bindir),echo $d/; )
+	@$(foreach d,$(sbindir),echo $d/; )
+	@$(foreach d,$(execdir),echo $d/; )
+	@$(foreach d,$(distdir),echo $d/; )
+	@echo "                                                            "
+	@echo "# Objects, Libraries and Binaries                           "
+	@echo "#==================================                         "
+	@$(foreach e,$(objext),echo *$e; )
+	@$(foreach e,$(libext),echo *$e; )
+	@$(foreach e,$(binext),echo *$e; )
+	@echo "                                                            "
+	@echo "# Make auxiliars                                            "
+	@echo "#=================                                          "
+	@echo $(if $(strip $(doxyfile)),$(docdir)/doxygen/)
+	@echo $(if $(strip $(doxyfile)),$(docdir)/$(doxyfile).mk)
+	@$(foreach e,$(depext),echo *$e; )
 	@echo "                                                            "
 
 .PHONY: help
@@ -1181,27 +2022,61 @@ projecthelp:
 	@echo "                                                            "
 	@echo "Default targets:                                            "
 	@echo "-----------------                                           "
-	@echo " * all:         Generate all executables                    "
-	@echo " * check:       Compile and run Unit Tests                  "
-	@echo " * config:      Outputs Config.mk model for user's options  "
-	@echo " * dist:        Create .tar.gz with binaries and libraries  "
-	@echo " * init:        Create directories for beggining projects   "
-	@echo " * tar:         Create .tar with binaries and libraries     "
+	@echo " * all-docs:     Generate docs in all formats avaiable      "
+	@echo " * all:          Generate all executables                   "
+	@echo " * check:        Compile and run Unit Tests                 "
+	@echo " * config:       Outputs Config.mk model for user's options "
+	@echo " * delete:       Remove C/C++ artifact (see above)          "
+	@echo " * dist-*:       As 'dist', with many types of compression  "
+	@echo " * dist:         Create .tar.gz with binaries and libraries "
+	@echo " * doxy:         Create Doxygen docs (if doxyfile defined)  "
+	@echo " * gitignore:    Outputs .gitignore model for user          "
+	@echo " * init:         Create directories for beggining projects  "
+	@echo " * install-*:    Install docs in info, html, dvi, pdf or ps "
+	@echo " * install-docs: Install documentation in all formats       "
+	@echo " * install:      Install executables and libraries          "
+	@echo " * installcheck: Run installation tests (if avaiable)       "
+	@echo " * new:          Create C/C++ artifact (see above)          "
+	@echo " * package-*:    As 'package', with many compressions       "
+	@echo " * package:      As 'dist', but also with sources and data  "
+	@echo " * standard:     Move files to their standard directories   "
+	@echo " * tar:          Create .tar with binaries and libraries    "
+	@echo " * uninstall:    Uninstall anything created by any install  "
 	@echo "                                                            "
 	@echo "Debug targets:                                              "
 	@echo "---------------                                             "
-	@echo " * dump:        Print main vars used within this Makefile   "
-	@echo " * nothing:     Self-explicative, hun?                      "
+	@echo " * dump:         Print main vars used within this Makefile  "
+	@echo " * nothing:      Self-explicative, hun?                     "
 	@echo "                                                            "
 	@echo "Cleaning targets:                                           "
 	@echo "------------------                                          "
-	@echo " * mostlyclean: Clean all object files                      "
-	@echo " * clean:       Above and dependencies ou are here          "
+	@echo " * mostlyclean:  Clean all object files                     "
+	@echo " * clean:        Above and all types of binaries            "
+	@echo " * distclean:    Above and libraries, .tar and .tar.gz      "
+	@echo " * realclean:    Above, auto-generated source and docs      "
+	@echo " * uninitialize: Above and source/include directories       "
 	@echo "                                                            "
 	@echo "Help targets:                                               "
 	@echo "---------------                                             "
-	@echo " * help:        Info about this Makefile                    "
-	@echo " * projecthelp: Perharps you kwnow if you are here          "
+	@echo " * help:         Info about this Makefile                   "
+	@echo " * projecthelp:  Perharps you kwnow if you are here         "
+	@echo "                                                            "
+	@echo "Special flags:                                              "
+	@echo "---------------                                             "
+	@echo " * D:            Allow deletion of a C/C++ artifact         "
+	@echo " * U:            Allow uninitilization of the project       "
+	@echo " * V:            Allow the verbose mode                     "
+	@echo " * MORE:         With error, use 'more' to read stderr      "
+	@echo " * SILENT:       Just output the plain commands as executed "
+	@echo " * NO_COLORS:    Outputs are made without any color         "
+	@echo "                                                            "
+	@echo "Management flags                                            "
+	@echo "-----------------                                           "
+	@echo "* NAMESPACE:     Create new directory for namespace         "
+	@echo "* CLASS:         Create new file for a C++ class            "
+	@echo "* C_FILE:        Create ordinaries C files (.c/.h)          "
+	@echo "* CXX_FILE:      Create ordinaries C++ files (.cpp/.hpp)    "
+	@echo "* TEMPLATE:      Create C++ template file (.tcc)            "
 	@echo "                                                            "
 
 ########################################################################
@@ -1209,73 +2084,104 @@ projecthelp:
 ########################################################################
 
 define prompt
-	@echo "${YELLOW}"$1"${RES}" \
-          $(if $(strip $2),"$(strip $2)\n","${RED}Empty${RES}")
+@echo "${YELLOW}"$1"${RES}"\
+      $(if $(strip $2),"$(strip $2)","${RED}Empty${RES}")
 endef
 
 .PHONY: dump
 dump: 
-	$(call prompt,"alllexer: ",$(alllexer)  )
-	$(call prompt,"clexer:   ",$(clexer)    )
-	$(call prompt,"cxxlexer: ",$(cxxlexer)  )
-	$(call prompt,"lexall:   ",$(lexall)    )
+	@echo "${WHITE}LEXER               ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"alllexer:  ",$(alllexer)  )
+	$(call prompt,"clexer:    ",$(clexer)    )
+	$(call prompt,"cxxlexer:  ",$(cxxlexer)  )
+	$(call prompt,"lexall:    ",$(lexall)    )
+	                                         
+	@echo "${WHITE}\nPARSER            ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"allparser: ",$(allparser) )
+	$(call prompt,"cparser:   ",$(cparser)   )
+	$(call prompt,"cxxparser: ",$(cxxparser) )
+	$(call prompt,"yaccall:   ",$(yaccall)   )
+	                                         
+	@echo "${WHITE}\nSOURCE            ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"srcall:    ",$(srcall)    )
+	$(call prompt,"srccln:    ",$(srccln)    )
+	$(call prompt,"src:       ",$(src)       )
+	$(call prompt,"autoall:   ",$(autoall)   )
+	$(call prompt,"autosrc:   ",$(autosrc)   )
+	$(call prompt,"incall:    ",$(incall)    )
 	
-	@echo "---------------------"
-	$(call prompt,"allparser:",$(allparser) )
-	$(call prompt,"cparser:  ",$(cparser)   )
-	$(call prompt,"cxxparser:",$(cxxparser) )
-	$(call prompt,"yaccall:  ",$(yaccall)   )
+	@echo "${WHITE}\nTEST              ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"testall:   ",$(testall)   )
+	$(call prompt,"testdep:   ",$(testdep)   )
+	$(call prompt,"testrun:   ",$(testrun)   )
+	                                         
+	@echo "${WHITE}\nLIBRARY           ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"lib_in:    ",$(lib_in)    )
+	$(call prompt,"libpat:    ",$(libpat)    )
+	$(call prompt,"liball:    ",$(liball)    )
+	$(call prompt,"libsrc:    ",$(libsrc)    )
+	$(call prompt,"libname:   ",$(libname)   )
+	$(call prompt,"lib:       ",$(lib)       )
 	
-	@echo "---------------------"
-	$(call prompt,"srcall:   ",$(srcall)    )
-	$(call prompt,"srccln:   ",$(srccln)    )
-	$(call prompt,"src:      ",$(src)       )
-	$(call prompt,"autoall:  ",$(autoall)   )
-	$(call prompt,"autosrc:  ",$(autosrc)   )
-	$(call prompt,"incall:   ",$(incall)    )
+	@echo "${WHITE}\nEXTERNAL LIBRARY  ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"externlib: ",$(externlib) )
+	$(call prompt,"externname:",$(externname))
+	                                         
+	@echo "${WHITE}\nSTATIC LIBRARY    ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"ar_in:     ",$(ar_in)     )
+	$(call prompt,"arpat:     ",$(arpat)     )
+	$(call prompt,"arpatsrc:  ",$(arpatsrc)  )
+	$(call prompt,"arname:    ",$(arname)    )
+	$(call prompt,"arlib:     ",$(arlib)     )
 	
-	@echo "---------------------"
-	$(call prompt,"testall:  ",$(testall)   )
-	$(call prompt,"testdep:  ",$(testdep)   )
-	$(call prompt,"testrun:  ",$(testrun)   )
+	@echo "${WHITE}\nDYNAMIC LIBRARY   ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"shr_in:    ",$(shr_in)    )
+	$(call prompt,"shrpat:    ",$(shrpat)    )
+	$(call prompt,"shrpatsrc: ",$(shrpatsrc) )
+	$(call prompt,"shrall:    ",$(shrall)    )
+	$(call prompt,"shrname:   ",$(shrname)   )
+	$(call prompt,"shrlib:    ",$(shrlib)    )
 	
-	@echo "---------------------"
-	$(call prompt,"lib_in:   ",$(lib_in)    )
-	$(call prompt,"libpat:   ",$(libpat)    )
-	$(call prompt,"liball:   ",$(liball)    )
-	$(call prompt,"libsrc:   ",$(libsrc)    )
-	$(call prompt,"lib:      ",$(lib)       )
+	@echo "${WHITE}\nOBJECT            ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"obj:       ",$(obj)       )
+	$(call prompt,"arobj:     ",$(arobj)     )
+	$(call prompt,"shrobj:    ",$(shrobj)    )
+	$(call prompt,"autoobj:   ",$(autoobj)   )
+	$(call prompt,"objall:    ",$(objall)    )
 	
-	@echo "---------------------"
-	$(call prompt,"ar_in:    ",$(ar_in)     )
-	$(call prompt,"arpat:    ",$(arpat)     )
-	$(call prompt,"arpsrc:   ",$(arpsrc)    )
-	$(call prompt,"arall:    ",$(arall)     )
-	$(call prompt,"arasrc:   ",$(arasrc)    )
-	$(call prompt,"arlib:    ",$(arlib)     )
+	@echo "${WHITE}\nDEPENDENCY        ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"depall:    ",$(depall)    )
 	
-	@echo "---------------------"
-	$(call prompt,"shr_in:   ",$(shr_in)    )
-	$(call prompt,"shrpat:   ",$(shrpat)    )
-	$(call prompt,"shrpsrc:  ",$(shrpsrc)   )
-	$(call prompt,"shrall:   ",$(shrall)    )
-	$(call prompt,"shrasrc:  ",$(shrasrc)   )
-	$(call prompt,"shrlib:   ",$(shrlib)    )
+	@echo "${WHITE}\nBINARY            ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"bin:       ",$(bin)       )
 	
-	@echo "---------------------"
-	$(call prompt,"obj:      ",$(obj)       )
-	$(call prompt,"arobj:    ",$(arobj)     )
-	$(call prompt,"shrobj:   ",$(shrobj)    )
-	$(call prompt,"autoobj:  ",$(autoobj)   )
+	@echo "${WHITE}\nDOCUMENTATION     ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"texiall:   ",$(texiall)   )
+	$(call prompt,"texisrc:   ",$(texiall)   )
+	$(call prompt,"texiinfo:  ",$(texiinfo)  )
+	$(call prompt,"texihtml:  ",$(texihtml)  )
+	$(call prompt,"texidvi:   ",$(texidvi)   )
+	$(call prompt,"texipdf:   ",$(texipdf)   )
+	$(call prompt,"texips:    ",$(texips)    )
 	
-	@echo "---------------------"
-	$(call prompt,"dep:      ",$(depall)    )
+	@echo "${WHITE}\nFLAGS             ${RES}"
+	@echo "----------------------------------"
+	$(call prompt,"cflags:    ",$(cflags)    )
+	$(call prompt,"clibs:     ",$(clibs)     )
+	$(call prompt,"cxxflags:  ",$(cxxflags)  )
+	$(call prompt,"cxxlibs:   ",$(cxxlibs)   )
+	$(call prompt,"ldlibs:    ",$(ldlibs)    )
+	$(call prompt,"ldflags:   ",$(ldflags)   )
 	
-	@echo "---------------------"
-	$(call prompt,"cflags:   ",$(cflags)    )
-	$(call prompt,"clibs:    ",$(clibs)     )
-	$(call prompt,"cxxflags: ",$(cxxflags)  )
-	$(call prompt,"cxxlibs:  ",$(cxxlibs)   )
-	$(call prompt,"ldlibs:   ",$(ldlibs)    )
-	$(call prompt,"ldflags:  ",$(ldflags)   )
-
