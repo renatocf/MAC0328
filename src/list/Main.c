@@ -50,8 +50,11 @@ int main()
         
         GRAPHshow(H);
         
-        GRAPHbridge(G);
-        bridgeDump(G);
+        GRAPHbridge(H);
+        bridgeDump(H);
+        
+        GRAPHartic(H);
+        articDump(H);
         
     /** MEMORY FREE ********8******************************************/
         printf("\n");

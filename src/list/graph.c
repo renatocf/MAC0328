@@ -113,18 +113,18 @@ void dfsDump(Digraph G)
 }
 
 /** Bridges *******************************************************/
-static int bridge_cnt, pre[maxV], bridge_bcnt, low[maxV];
-static int bridge_parnt[maxV];
+static int brg_cnt, brg_pre[maxV], brg_bcnt, brg_low[maxV];
+static int brg_parnt[maxV];
 void GRAPHbridge(Graph G)
 {
     Vertex v;
-    bridge_cnt = bridge_bcnt = 0;
+    brg_cnt = brg_bcnt = 0;
     for(v = 0; v < G->V; v++)
-        pre[v] = -1;
+        brg_pre[v] = -1;
     for(v = 0; v < G->V; v++)
-        if(pre[v] == -1)
+        if(brg_pre[v] == -1)
         {
-            bridge_parnt[v] = v;
+            brg_parnt[v] = v;
             bridgeR(G,v);
         }
 }
@@ -132,21 +132,22 @@ void GRAPHbridge(Graph G)
 void bridgeR(Graph G, Vertex v)
 {
     link p; Vertex u;
-    low[v] = pre[v] = bridge_cnt++;
+    brg_low[v] = brg_pre[v] = brg_cnt++;
     for(p = G->adj[v]; p; p = p->next)
     {
-        if(pre[u = p->w] == -1)
+        if(brg_pre[u = p->w] == -1)
         {
-            bridge_parnt[u] = v;
+            brg_parnt[u] = v;
             bridgeR(G,u);
-            if(low[v] > low[u]) low[v] = low[u];
-            else if(low[u] == pre[u]) {
-                bridge_bcnt++;
-                printf("Bridge found: Edge %d-%d", v, u);
+            if(brg_low[v] > brg_low[u]) brg_low[v] = brg_low[u];
+            else if(brg_low[u] == brg_pre[u]) {
+                brg_bcnt++;
+                printf("Bridge found: %d-%d\n", v, u);
             }
         }
-        else if(u != bridge_parnt[v] && low[v] > low[u]) /* descendent */
-            low[v] = low[u];
+        /* return arc */
+        else if(u != brg_parnt[v] && brg_low[v] > brg_low[u])
+            brg_low[v] = brg_low[u];
     }
 }
 
@@ -154,8 +155,69 @@ void bridgeDump(Graph G)
 {
     Vertex v;
     printf("\n");
-    printf("%d bridges found!\n", bridge_bcnt);
+    printf("%d bridges found!\n", brg_bcnt);
     for(v = 0; v < G->V; v++)
-        printf("%2d: parnt:%2d [pre:%d,low:%d]\n", 
-                v, bridge_parnt[v], pre[v], low[v]);
+        printf("%2d: parnt:%2d [brg_pre:%d,brg_low:%d]\n", 
+                v, brg_parnt[v], brg_pre[v], brg_low[v]);
+}
+
+/** Articulation **************************************************/
+static int art_cnt, art_pre[maxV], art_bcnt, art_low[maxV];
+static int art_parnt[maxV];
+static int depth = 0;
+void GRAPHartic(Graph G)
+{
+    Vertex v;
+    depth = 0;
+    art_cnt = art_bcnt = 0;
+    for(v = 0; v < G->V; v++)
+        art_pre[v] = -1;
+    for(v = 0; v < G->V; v++)
+        if(art_pre[v] == -1)
+        {
+            art_parnt[v] = v;
+            articR(G,v);
+        }
+}
+
+void articR(Graph G, Vertex v)
+{
+    link p; Vertex u;
+    int n_sons = 0;
+    int aux = depth++;
+    art_low[v] = art_pre[v] = art_cnt++;
+    while(aux--) printf(" "); printf("articR(%d)\n", v);
+    for(p = G->adj[v]; p; p = p->next)
+    {
+        if(art_pre[u = p->w] == -1)
+        {
+            art_parnt[u] = v;
+            n_sons++;
+            articR(G,u);
+            /* Check if son's low > our low */
+            if(art_low[v] > art_low[u]) art_low[v] = art_low[u];
+            /* else if(art_low[u] == art_pre[u]) { */
+            /*     art_bcnt++; */
+            /*     printf("Articulation found: %d\n", v); */
+            /* } */
+        }
+        /* return arc */
+        /* else if(u != art_parnt[v] && art_low[v] > art_pre[u]) */
+            /* art_low[v] = art_pre[u]; */
+    }
+    if(art_low[v] == art_pre[v]) {
+        art_bcnt++;
+        printf("Articulation found: %d\n", v);
+    }
+    depth--;
+}
+
+void articDump(Graph G)
+{
+    Vertex v;
+    printf("\n");
+    printf("%d articulations found!\n", art_bcnt);
+    for(v = 0; v < G->V; v++)
+        printf("%2d: parnt:%2d [art_pre:%d,art_low:%d]\n", 
+                v, art_parnt[v], art_pre[v], art_low[v]);
 }

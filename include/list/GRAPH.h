@@ -79,4 +79,8 @@ void GRAPHbridge (Graph G);
 void bridgeR     (Graph G, Vertex v);
 void bridgeDump  (Graph G);
 
+void GRAPHartic (Graph G);
+void articR     (Graph G, Vertex v);
+void articDump  (Graph G);
+
 #endif
