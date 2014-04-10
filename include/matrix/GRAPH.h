@@ -1,5 +1,5 @@
-#ifndef H_GRAPH_DEFINED
-#define H_GRAPH_DEFINED
+#ifndef H_MATRIX_GRAPH_DEFINED
+#define H_MATRIX_GRAPH_DEFINED
 
 /*
 ////////////////////////////////////////////////////////////////////////

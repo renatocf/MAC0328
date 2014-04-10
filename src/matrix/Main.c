@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 /* Libraries */
-#include "GRAPH.h"
+#include "matrix/GRAPH.h"
 
 int main()
 {
